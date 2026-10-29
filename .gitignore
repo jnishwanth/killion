@@ -1,0 +1,11 @@
+# regenerable data artifacts (see download_full.py)
+full_dives.json
+full_answers.csv
+official_latest.json
+
+# stale sampled dataset (superseded by full_dives.json)
+data.json
+
+# misc
+*.tmp
+.DS_Store

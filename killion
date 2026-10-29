@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# killion — game-verified Krillion answers, fzf-driven.
+#
+#   killion                interactive: fuzzy-search questions (fzf) → answer list
+#                          Enter on a question = show answers
+#                          Enter on an answer  = copy to clipboard
+#                          Esc in answers      = back to search (query kept)
+#                          Esc in search       = quit
+#   killion <question>     one-shot: print the answer list for the best match
+#   killion <question> --json   print the raw answer object (pipe to jq)
+#   killion watch <code>   watch a Puffer Party room's live question + best
+#                          verified answers, minus what's already been said
+#                          (invisible: takes no seat, appears nowhere in the UI;
+#                           records every accepted answer it sees into
+#                           party_answers.json so party categories accumulate
+#                           game-verified answers over time)
+#
+# Data: full_dives.json (regenerate with: python3 download_full.py)
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DATA="$HERE/full_dives.json"
+PARTY="$HERE/party_answers.json"
+[[ -f $PARTY ]] || echo '{}' > "$PARTY"
+
+for cmd in fzf jq; do
+  command -v "$cmd" >/dev/null || { echo "error: $cmd is required" >&2; exit 1; }
+done
+[[ -f $DATA ]] || { echo "error: no $DATA — run: python3 download_full.py" >&2; exit 1; }
+
+# renders the full tiered answer list for one exact question (via --arg q)
+RENDER=$(cat "$HERE/render.jq")
+
+# merged JSON lookup across daily + party data (stdout: one JSON object or empty)
+AS_JSON=$(cat <<'JQ'
+($p[0] // {}) as $party
+| ( [ .[] as $d | $d.prompts[] | select(.q == $q) | {dive: $d.n, date: $d.date, answers: .answers} ] | .[0] ) as $daily
+| (if $daily != null then [$daily.answers[] | .a | ascii_downcase] else [] end) as $dlow
+| ($party[$q] // []) as $pans
+| (if ($daily == null) and (($pans|length) == 0) then empty else
+    ({"krillion":100,"deepcut":85,"rare":60,"schooler":30,"tooclever":15,"plankton":10}) as $pts
+    | { question: $q,
+        source: (if $daily != null then (if (($pans|length) > 0) then "daily+party" else "daily" end) else "party" end),
+        dive: $daily.dive,
+        date: $daily.date,
+        answers: ( [ ($daily.answers // [])[] ]
+                  + [ $pans[] | . as $e
+                       | select(($dlow | index($e.a | ascii_downcase)) == null)
+                       | $e + {pts: ($pts[$e.tier] // 0), quip: null} ] ) }
+   end)
+JQ
+)
+
+# party-verified extras not already in the daily list (needs daily match)
+EXTRAS=$(cat <<'JQ'
+($p[0] // {}) as $party
+| ( [ .[] as $d | $d.prompts[] | select(.q == $q) | .answers ] | .[0] ) as $daily
+| select($daily != null)
+| [$daily[] | .a | ascii_downcase] as $dlow
+| ($party[$q] // []) as $pans
+| [$pans[] | . as $e | select(($dlow | index($e.a | ascii_downcase)) == null) | $e] as $extra
+| select(($extra|length) > 0)
+| [ "+ party-verified extras (\($extra|length))" ]
+  + [ $extra[] | "    \(.a)" + (if .seen > 1 then "  (×\(.seen))" else "" end) ] + [""]
+| .[]
+JQ
+)
+
+qlist() {
+  { jq -r '[.[] | .prompts[].q] | unique | .[]' "$DATA"
+    jq -r 'keys[]' "$PARTY"
+  } | sort -u
+}
+render() {
+  local q="$1" out extra
+  out=$(jq -r --arg q "$q" "$RENDER" "$DATA")
+  if [[ -n $out ]]; then
+    printf '%s\n' "$out"
+    extra=$(jq -r --arg q "$q" --slurpfile p "$PARTY" "$EXTRAS" "$DATA")
+    [[ -n $extra ]] && printf '%s\n' "$extra"
+    return 0
+  fi
+  jq -r --arg q "$q" "$(cat "$HERE/party-render.jq")" "$PARTY"
+}
+as_json() {
+  jq -c --arg q "$1" --slurpfile p "$PARTY" "$AS_JSON" "$DATA"
+}
+
+# answer viewer: Enter on a line copies it to the clipboard
+answer_view() {
+  local q="$1" line rc
+  line=$(render "$q" | fzf --no-sort \
+    --prompt 'answers>    enter=copy  esc=again')
+  rc=$?
+  if (( rc == 0 )) && [[ -n $line ]]; then
+    case $line in
+      [[:space:]]*)                          # indented = a real answer line
+        local a="${line#"${line%%[![:space:]]*}"}"
+        printf '%s' "$a" | pbcopy
+        echo "  copied: $a" >&2
+        ;;
+    esac
+  fi
+  return 0
+}
+
+interactive() {
+  local q rc last=""
+  local list; list=$(qlist)
+  while :; do
+    local args=()
+    [[ -n $last ]] && args+=(--query "$last")
+    q=$(printf '%s\n' "$list" | fzf --reverse --height 40% \
+        --prompt 'question> ' "${args[@]}")
+    rc=$?
+    (( rc == 0 && ${#q} > 0 )) || return 0    # esc / ctrl-c / empty → exit
+    last=$q
+    answer_view "$q"                          # esc in answer view → loop again
+  done
+}
+
+one_shot() {
+  local query="$*" q
+  q=$(qlist | grep -Fx -- "$query" || true)
+  if [[ -n $q ]]; then :; else
+    q=$(qlist | grep -Fi -- "$query" || true)
+    if [[ -n $q ]] && [[ $(wc -l <<<"$q") -gt 1 ]]; then
+      printf '%s\n' "$q" >&2
+      echo "ambiguous — re-run with a fuller question" >&2
+      return 1
+    fi
+    if [[ -z $q ]]; then
+      echo "no game-verified answers for: $query" >&2
+      echo "(use plain 'killion' to fuzzy-search interactively)" >&2
+      return 1
+    fi
+  fi
+  printf '%s\n' "$q"
+}
+
+# validate the dataset against the latest official reveal (official_latest.json)
+selftest() {
+  local off="$HERE/official_latest.json"
+  [[ -f $off ]] || { echo "no official_latest.json to validate against" >&2; return 1; }
+  local ok=1 text n_off n_mine
+  while IFS=$'\t' read -r text n_off; do
+    n_mine=$(jq -r --arg q "$text" '[.[] | .prompts[] | select(.q == $q) | .answers | length] | .[0] // -1' "$DATA")
+    if [[ $n_mine -eq $n_off ]]; then
+      printf 'ok      %-55s %s\n' "$text" "$n_off"
+    else
+      printf 'MISMATCH %-55s official=%s tool=%s\n' "$text" "$n_off" "$n_mine"
+      ok=0
+    fi
+  done < <(jq -r '.prompts[] | [.text, (.answers | length)] | @tsv' "$off")
+  local gem_off gem_mine
+  gem_off=$(jq -r '[.prompts[0].answers[] | select(.tier == "krillion") | .answer] | join(",")' "$off")
+  gem_mine=$(jq -r --arg q "$(jq -r '.prompts[0].text' "$off")"     '[.[] | .prompts[] | select(.q == $q) | .answers[] | select(.tier == "krillion") | .a] | join(",")' "$DATA")
+  if [[ $gem_off == "$gem_mine" ]]; then
+    echo "ok      gem for '$(jq -r '.prompts[0].text' "$off" | cut -c1-45)...'"
+  else
+    echo "MISMATCH gem: official=[$gem_off] tool=[$gem_mine]"
+    ok=0
+  fi
+  echo
+  if (( ok )); then echo "SELFTEST PASSED"; else echo "SELFTEST FAILED"; fi
+  return $(( 1 - ok ))
+}
+
+main() {
+  local -a rest=()
+  local as_json=0
+  local a
+  for a in "$@"; do
+    case $a in
+      --json) as_json=1 ;;
+      --selftest) selftest; exit $? ;;
+      *) rest+=("$a") ;;
+    esac
+  done
+  if (( ${#rest[@]} == 0 )); then
+    if [[ -t 0 && -t 1 ]]; then
+      interactive
+    else
+      echo "usage: killion  (interactive)   |   killion <question> [--json]   |   killion watch <roomcode>   |   killion --selftest" >&2
+      exit 2
+    fi
+  elif [[ ${rest[0]} == watch ]]; then
+    command -v node >/dev/null || { echo "error: watch mode needs node" >&2; exit 1; }
+    exec node "$HERE/watch.mjs" "${rest[1]:-}"
+  elif (( as_json )); then
+    local q
+    q=$(one_shot "${rest[@]}") || return $?
+    as_json "$q"
+  else
+    local q
+    q=$(one_shot "${rest[@]}") || return $?
+    render "$q"
+  fi
+}
+
+main "$@"
