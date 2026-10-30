@@ -1,100 +1,108 @@
 #!/usr/bin/env bash
 # killion — game-verified Krillion answers, fzf-driven.
-#
-#   killion                interactive: fuzzy-search questions (fzf) → answer list
-#                          Enter on a question = show answers
-#                          Enter on an answer  = copy to clipboard
-#                          Esc in answers      = back to search (query kept)
-#                          Esc in search       = quit
-#   killion <question>     one-shot: print the answer list for the best match
-#   killion <question> --json   print the raw answer object (pipe to jq)
-#   killion watch <code>   watch a Puffer Party room's live question + best
-#                          verified answers, minus what's already been said
-#                          (invisible: takes no seat, appears nowhere in the UI;
-#                           records every accepted answer it sees into
-#                           party_answers.json so party categories accumulate
-#                           game-verified answers over time)
-#
-# Data: full_dives.json (regenerate with: python3 download_full.py)
+# Modes and flags: killion --help (usage() below is the single source).
+# Data: full_dives.json (regenerate with: python3 download_full.py);
+# party_answers.json grows from `killion watch`'s recorded answers.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA="$HERE/full_dives.json"
 PARTY="$HERE/party_answers.json"
-[[ -f $PARTY ]] || echo '{}' > "$PARTY"
+TIERS="$HERE/tiers.json"
+QLIST="$HERE/questions.txt"
+
+usage() {
+  cat <<'EOF'
+usage: killion [mode]
+  (no args)               interactive: fzf question search → verified answers;
+                          Enter on a question shows its answers, Enter on an
+                          answer copies it to the clipboard; Esc in answers
+                          goes back (query kept), Esc in search quits
+  <question>              one-shot: best verified answers, rarest first
+                          (per tier, display-capped; --all lifts the caps)
+  <question> --all        one-shot: the full sheet, uncapped
+  <question> --json       one-shot: print the raw answer object (pipe to jq)
+  watch <roomcode>        watch a Puffer Party room live — invisible, takes no
+                          seat; verified answers minus what's already been said;
+                          records every accepted answer into party_answers.json
+  --selftest              validate the dataset against the latest official reveal
+  -h, --help              print this help
+EOF
+}
+
+# -h/--help is answered before the dep/data checks below: help needs neither,
+# and must work (without creating party_answers.json) on a bare machine too
+for a in "$@"; do
+  case $a in -h|--help) usage; exit 0 ;; esac
+done
 
 for cmd in fzf jq; do
   command -v "$cmd" >/dev/null || { echo "error: $cmd is required" >&2; exit 1; }
 done
 [[ -f $DATA ]] || { echo "error: no $DATA — run: python3 download_full.py" >&2; exit 1; }
+[[ -f $TIERS ]] || { echo "error: no $TIERS" >&2; exit 1; }
+# create the party file only once the tool is known to be runnable — a
+# failed prerequisite must leave the repo untouched (same convention as help)
+[[ -f $PARTY ]] || echo '{}' > "$PARTY"
 
-# renders the full tiered answer list for one exact question (via --arg q)
-RENDER=$(cat "$HERE/render.jq")
+# match a query and print the result in one pass: answer lines (text,
+# capped; full, uncapped), a compact JSON object (json), \x01-prefixed
+# candidates (ambiguous), or nothing (no match). $1 = query, $2 = mode.
+# render.jq is passed with -f, like selftest.jq: one jq pass, no cat
+lookup() {
+  jq -r -f "$HERE/render.jq" --arg q "$1" --arg m "$2" \
+    --slurpfile p "$PARTY" --slurpfile T "$TIERS" "$DATA"
+}
 
-# merged JSON lookup across daily + party data (stdout: one JSON object or empty)
-AS_JSON=$(cat <<'JQ'
-($p[0] // {}) as $party
-| ( [ .[] as $d | $d.prompts[] | select(.q == $q) | {dive: $d.n, date: $d.date, answers: .answers} ] | .[0] ) as $daily
-| (if $daily != null then [$daily.answers[] | .a | ascii_downcase] else [] end) as $dlow
-| ($party[$q] // []) as $pans
-| (if ($daily == null) and (($pans|length) == 0) then empty else
-    ({"krillion":100,"deepcut":85,"rare":60,"schooler":30,"tooclever":15,"plankton":10}) as $pts
-    | { question: $q,
-        source: (if $daily != null then (if (($pans|length) > 0) then "daily+party" else "daily" end) else "party" end),
-        dive: $daily.dive,
-        date: $daily.date,
-        answers: ( [ ($daily.answers // [])[] ]
-                  + [ $pans[] | . as $e
-                       | select(($dlow | index($e.a | ascii_downcase)) == null)
-                       | $e + {pts: ($pts[$e.tier] // 0), quip: null} ] ) }
-   end)
-JQ
-)
-
-# party-verified extras not already in the daily list (needs daily match)
-EXTRAS=$(cat <<'JQ'
-($p[0] // {}) as $party
-| ( [ .[] as $d | $d.prompts[] | select(.q == $q) | .answers ] | .[0] ) as $daily
-| select($daily != null)
-| [$daily[] | .a | ascii_downcase] as $dlow
-| ($party[$q] // []) as $pans
-| [$pans[] | . as $e | select(($dlow | index($e.a | ascii_downcase)) == null) | $e] as $extra
-| select(($extra|length) > 0)
-| [ "+ party-verified extras (\($extra|length))" ]
-  + [ $extra[] | "    \(.a)" + (if .seen > 1 then "  (×\(.seen))" else "" end) ] + [""]
-| .[]
-JQ
-)
-
+# all known questions, one per line (fzf search list). The dataset half is
+# cached in questions.txt (gitignored; regenerated when missing or when the
+# dataset is newer than the cache, i.e. it was refreshed or hand-edited).
+# temp+mv so a partial write never sticks around as a "fresh" list
 qlist() {
-  { jq -r '[.[] | .prompts[].q] | unique | .[]' "$DATA"
-    jq -r 'keys[]' "$PARTY"
-  } | sort -u
-}
-render() {
-  local q="$1" out extra
-  out=$(jq -r --arg q "$q" "$RENDER" "$DATA")
-  if [[ -n $out ]]; then
-    printf '%s\n' "$out"
-    extra=$(jq -r --arg q "$q" --slurpfile p "$PARTY" "$EXTRAS" "$DATA")
-    [[ -n $extra ]] && printf '%s\n' "$extra"
-    return 0
+  if [[ ! -f $QLIST || $DATA -nt $QLIST ]]; then
+    jq -r '[.[] | .prompts[].q] | unique | .[]' "$DATA" > "$QLIST.tmp" && mv "$QLIST.tmp" "$QLIST"
   fi
-  jq -r --arg q "$q" "$(cat "$HERE/party-render.jq")" "$PARTY"
-}
-as_json() {
-  jq -c --arg q "$1" --slurpfile p "$PARTY" "$AS_JSON" "$DATA"
+  { cat "$QLIST"; jq -r 'keys[]' "$PARTY"; } | sort -u
 }
 
-# answer viewer: Enter on a line copies it to the clipboard
+# per-question answer-sheet cache for the interactive path. VIEW lives in
+# the MAIN shell — a pipeline component runs in a subshell and would lose
+# the write — so view_ready() runs before the pipe, and answer_view pipes
+# the cached text itself. full mode: fzf's list must show every answer
+# (the display caps are for terminal output only). VIEW_EPOCH invalidates
+# the cache the moment a data file is rewritten — a concurrent `killion
+# watch` records accepted answers into party_answers.json between rounds.
+# The epoch is a marker file because bash's -nt compares mtimes at full
+# precision, while an mtime string is second-granular (a same-second
+# flush would slip through)
+declare -A VIEW=()
+VIEW_EPOCH=""
+view_ready() {
+  local q="$1"
+  if [[ $VIEW_EPOCH && ( "$DATA" -nt "$VIEW_EPOCH" || "$PARTY" -nt "$VIEW_EPOCH" ) ]]; then
+    VIEW=()
+  fi
+  if [[ ${VIEW[$q]+x} != x ]]; then
+    VIEW[$q]=$(lookup "$q" full)
+    touch "$VIEW_EPOCH"    # the cache is fresh as of this moment
+  fi
+}
+
+# answer viewer: Enter on an answer line copies the bare answer to the
+# clipboard — the "  — quip" / "  (×N)" decorations are stripped, and the
+# 2-space-indented tier rows and headers are never copied
 answer_view() {
-  local q="$1" line rc
-  line=$(render "$q" | fzf --no-sort \
+  local q="$1" line rc a
+  view_ready "$q"
+  [[ -n ${VIEW[$q]} ]] || return 0      # no verified answers: nothing to show
+  line=$(printf '%s\n' "${VIEW[$q]}" | fzf --no-sort \
     --prompt 'answers>    enter=copy  esc=again')
   rc=$?
-  if (( rc == 0 )) && [[ -n $line ]]; then
+  if (( rc == 0 )); then
     case $line in
-      [[:space:]]*)                          # indented = a real answer line
-        local a="${line#"${line%%[![:space:]]*}"}"
+      "    "*)                              # 4 spaces = an answer line
+        a="${line#    }"
+        a="${a%%  —*}"                      # drop the quip decoration
+        a="${a%%  (×*)}"                    # drop the (×N) decoration
         printf '%s' "$a" | pbcopy
         echo "  copied: $a" >&2
         ;;
@@ -106,6 +114,9 @@ answer_view() {
 interactive() {
   local q rc last=""
   local list; list=$(qlist)
+  # epoch marker for the render cache; the RETURN trap removes it on exit
+  VIEW_EPOCH="$(mktemp "${TMPDIR:-/tmp}/killion.epoch.XXXXXX")"
+  trap 'rm -f "$VIEW_EPOCH"' RETURN
   while :; do
     local args=()
     [[ -n $last ]] && args+=(--query "$last")
@@ -118,48 +129,50 @@ interactive() {
   done
 }
 
+# one-shot: resolve the query (exact, else case-insensitive substring) and
+# print the result in one pass. $1 = text|full|json, rest = query words.
 one_shot() {
-  local query="$*" q
-  q=$(qlist | grep -Fx -- "$query" || true)
-  if [[ -n $q ]]; then :; else
-    q=$(qlist | grep -Fi -- "$query" || true)
-    if [[ -n $q ]] && [[ $(wc -l <<<"$q") -gt 1 ]]; then
-      printf '%s\n' "$q" >&2
-      echo "ambiguous — re-run with a fuller question" >&2
-      return 1
-    fi
-    if [[ -z $q ]]; then
-      echo "no game-verified answers for: $query" >&2
-      echo "(use plain 'killion' to fuzzy-search interactively)" >&2
-      return 1
-    fi
+  local mode="$1"; shift
+  local query="$*" out
+  out=$(lookup "$query" "$mode")
+  if [[ -z $out ]]; then
+    echo "no game-verified answers for: $query" >&2
+    echo "(use plain 'killion' to fuzzy-search interactively)" >&2
+    return 1
   fi
-  printf '%s\n' "$q"
+  if [[ $out == *$'\x01'* ]]; then
+    printf '%s\n' "${out//$'\x01'/}" >&2
+    echo "ambiguous — re-run with a fuller question" >&2
+    return 1
+  fi
+  printf '%s\n' "$out"
+  return 0
 }
 
 # validate the dataset against the latest official reveal (official_latest.json)
+# one jq pass (selftest.jq) emits a TSV row per official prompt (P) + the gem (G)
 selftest() {
   local off="$HERE/official_latest.json"
   [[ -f $off ]] || { echo "no official_latest.json to validate against" >&2; return 1; }
-  local ok=1 text n_off n_mine
-  while IFS=$'\t' read -r text n_off; do
-    n_mine=$(jq -r --arg q "$text" '[.[] | .prompts[] | select(.q == $q) | .answers | length] | .[0] // -1' "$DATA")
-    if [[ $n_mine -eq $n_off ]]; then
-      printf 'ok      %-55s %s\n' "$text" "$n_off"
+  local out ok=1 kind text a b
+  out=$(jq -r -f "$HERE/selftest.jq" --slurpfile o "$off" "$DATA") \
+    || { echo 'selftest: dataset or official file is malformed' >&2; return 1; }
+  [[ -n $out ]] || { echo 'selftest: dataset or official file is malformed' >&2; return 1; }
+  while IFS=$'\t' read -r kind text a b; do
+    if [[ $kind == G ]]; then
+      if [[ $a == "$b" ]]; then
+        echo "ok      gem for '$(printf '%s' "$text" | cut -c1-45)...'"
+      else
+        echo "MISMATCH gem: official=[$a] tool=[$b]"
+        ok=0
+      fi
+    elif [[ $a -eq $b ]]; then
+      printf 'ok      %-55s %s\n' "$text" "$a"
     else
-      printf 'MISMATCH %-55s official=%s tool=%s\n' "$text" "$n_off" "$n_mine"
+      printf 'MISMATCH %-55s official=%s tool=%s\n' "$text" "$a" "$b"
       ok=0
     fi
-  done < <(jq -r '.prompts[] | [.text, (.answers | length)] | @tsv' "$off")
-  local gem_off gem_mine
-  gem_off=$(jq -r '[.prompts[0].answers[] | select(.tier == "krillion") | .answer] | join(",")' "$off")
-  gem_mine=$(jq -r --arg q "$(jq -r '.prompts[0].text' "$off")"     '[.[] | .prompts[] | select(.q == $q) | .answers[] | select(.tier == "krillion") | .a] | join(",")' "$DATA")
-  if [[ $gem_off == "$gem_mine" ]]; then
-    echo "ok      gem for '$(jq -r '.prompts[0].text' "$off" | cut -c1-45)...'"
-  else
-    echo "MISMATCH gem: official=[$gem_off] tool=[$gem_mine]"
-    ok=0
-  fi
+  done <<< "$out"
   echo
   if (( ok )); then echo "SELFTEST PASSED"; else echo "SELFTEST FAILED"; fi
   return $(( 1 - ok ))
@@ -167,11 +180,12 @@ selftest() {
 
 main() {
   local -a rest=()
-  local as_json=0
+  local as_json=0 as_all=0
   local a
   for a in "$@"; do
     case $a in
       --json) as_json=1 ;;
+      --all) as_all=1 ;;
       --selftest) selftest; exit $? ;;
       *) rest+=("$a") ;;
     esac
@@ -180,20 +194,18 @@ main() {
     if [[ -t 0 && -t 1 ]]; then
       interactive
     else
-      echo "usage: killion  (interactive)   |   killion <question> [--json]   |   killion watch <roomcode>   |   killion --selftest" >&2
+      usage >&2
       exit 2
     fi
   elif [[ ${rest[0]} == watch ]]; then
     command -v node >/dev/null || { echo "error: watch mode needs node" >&2; exit 1; }
     exec node "$HERE/watch.mjs" "${rest[1]:-}"
   elif (( as_json )); then
-    local q
-    q=$(one_shot "${rest[@]}") || return $?
-    as_json "$q"
+    one_shot json "${rest[@]}" || return 1
+  elif (( as_all )); then
+    one_shot full "${rest[@]}" || return 1
   else
-    local q
-    q=$(one_shot "${rest[@]}") || return $?
-    render "$q"
+    one_shot text "${rest[@]}" || return 1
   fi
 }
 

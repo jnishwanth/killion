@@ -1,0 +1,11 @@
+{
+ "order": ["krillion", "deepcut", "rare", "schooler", "tooclever", "plankton"],
+ "tiers": {
+  "krillion":  {"name": "One in a Krillion", "icon": "◆", "pts": 100, "cap": 5},
+  "deepcut":   {"name": "Deep Cut", "icon": "◆", "pts": 85, "cap": 12},
+  "rare":      {"name": "Rare", "icon": "●", "pts": 60, "cap": 6},
+  "schooler":  {"name": "Schooler", "icon": "●", "pts": 30, "cap": 4},
+  "tooclever": {"name": "Too Clever", "icon": "○", "pts": 15, "cap": 3},
+  "plankton":  {"name": "Plankton", "icon": "○", "pts": 10, "cap": 3}
+ }
+}

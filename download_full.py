@@ -11,12 +11,14 @@ Each /archive/YYYY-MM-DD/ page has 7 prompt cards (id="p1".."p7"):
 
 Outputs (in this directory):
   full_dives.json  - one object per dive: {n, date, prompts: [{q, answers: [{a, tier, pts, quip}]}]}
-  full_answers.csv - one row per answer: dive, date, prompt, answer, tier, points
   official_latest.json - raw latest official reveal (for validation)
+With --csv (opt-in; nothing in the repo consumes the CSV):
+  full_answers.csv - one row per answer: dive, date, prompt, answer, tier, points
 """
 import csv
 import html as htmlmod
 import json
+import os
 import re
 import sys
 import time
@@ -28,8 +30,10 @@ START = date(2026, 7, 16)          # Dive #1
 SLEEP = 0.25
 UA = {"User-Agent": "Mozilla/5.0 (killion-tool research)"}
 
-TIER_PTS = {"krillion": 100, "deepcut": 85, "rare": 60,
-            "schooler": 30, "tooclever": 15, "plankton": 10}
+# tier table shared with render.jq + watch.mjs (next to this script)
+HERE = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(HERE, "tiers.json"), encoding="utf-8") as _f:
+    TIER_PTS = {k: v["pts"] for k, v in json.load(_f)["tiers"].items()}
 
 CARD_RE = re.compile(r'id="p([1-7])"')
 
@@ -47,11 +51,11 @@ def get(url: str, retries: int = 3) -> bytes:
             time.sleep(2 * (i + 1))
 
 
-def parse_cards(html: str, day: date) -> list[dict]:
+def parse_cards(html: str) -> list[dict]:
     """Parse all 7 prompt cards out of a dive page."""
-    # split html into card segments by id="pN"
+    # split html into card segments by id="pN" (finditer is in document order,
+    # so the marks are already position-sorted)
     marks = [(int(m.group(1)), m.start()) for m in CARD_RE.finditer(html)]
-    marks.sort(key=lambda x: x[1])
     if not marks:
         raise ValueError("no prompt cards found")
     prompts = []
@@ -79,6 +83,7 @@ def parse_cards(html: str, day: date) -> list[dict]:
                     seg, re.S):
                 tier, tcount, body = tg.group(1), int(tg.group(2)), tg.group(3)
                 pts = TIER_PTS.get(tier)
+                got = 0
                 for chip in re.finditer(r'data-copy="([^"]*)"', body):
                     a = htmlmod.unescape(chip.group(1))
                     quip = None
@@ -87,15 +92,16 @@ def parse_cards(html: str, day: date) -> list[dict]:
                     if mq:
                         quip = htmlmod.unescape(mq.group(1)) or None
                     answers.append({"a": a, "tier": tier, "pts": pts, "quip": quip})
-                if len([x for x in answers if x["tier"] == tier]) != tcount:
-                    raise ValueError(f"p{num} tier {tier}: got {len([x for x in answers if x['tier']==tier])}, expected {tcount}")
+                    got += 1
+                if got != tcount:
+                    raise ValueError(f"p{num} tier {tier}: got {got}, expected {tcount}")
         if len(answers) != expected:
             raise ValueError(f"p{num} '{q[:40]}': got {len(answers)}, expected {expected}")
         prompts.append({"q": q, "answers": answers})
     return prompts
 
 
-def main():
+def main(with_csv: bool = False):
     latest = None
     d = date.today()
     for _ in range(20):
@@ -117,9 +123,9 @@ def main():
         n = i + 1
         try:
             page = get(f"{BASE}/archive/{day.isoformat()}/").decode("utf-8", "replace")
-            prompts = parse_cards(page, day)
+            prompts = parse_cards(page)
         except Exception as e:
-            problems.append((n, day.isoformat(), str(e)))
+            problems.append(n)
             print(f"  ! dive #{n} {day}: {e}")
             time.sleep(SLEEP)
             continue
@@ -128,23 +134,28 @@ def main():
         print(f"  dive #{n} {day}: {len(prompts)} prompts, {total} answers")
         time.sleep(SLEEP)
 
-    with open("full_dives.json", "w") as f:
+    # explicit utf-8 on every write: under a POSIX/C locale the default
+    # encoding is ASCII, and a crash mid-dump would leave the dataset
+    # half-written
+    with open("full_dives.json", "w", encoding="utf-8") as f:
         json.dump(dives, f, ensure_ascii=False)
-    with open("full_answers.csv", "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["dive", "date", "prompt", "answer", "tier", "points"])
-        for dv in dives:
-            for p in dv["prompts"]:
-                for a in p["answers"]:
-                    w.writerow([dv["n"], dv["date"], p["q"], a["a"], a["tier"], a["pts"]])
+    if with_csv:    # opt-in: 44 MB, and nothing in the repo consumes it
+        with open("full_answers.csv", "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["dive", "date", "prompt", "answer", "tier", "points"])
+            for dv in dives:
+                for p in dv["prompts"]:
+                    for a in p["answers"]:
+                        w.writerow([dv["n"], dv["date"], p["q"], a["a"], a["tier"], a["pts"]])
 
     # cross-check the latest complete dive against the official public API
     for dv in reversed(dives):
         try:
             off = json.loads(get(f"https://krillion.io/api/reveal?date={dv['date']}"))
-        except Exception as e:
+        except Exception:
             continue
-        open("official_latest.json", "w").write(json.dumps(off, ensure_ascii=False))
+        with open("official_latest.json", "w", encoding="utf-8") as f:
+            f.write(json.dumps(off, ensure_ascii=False))
         print(f"\nvalidation vs official API (dive #{dv['n']} {dv['date']}):")
         off_by_q = {p["text"]: len(p["answers"]) for p in off["prompts"]}
         allok = True
@@ -163,8 +174,8 @@ def main():
     complete = sum(1 for dv in dives if len(dv["prompts"]) == 7)
     print(f"\ndone: {len(dives)} dives ({complete} complete), {n_ans} answers")
     if problems:
-        print(f"{len(problems)} dives had problems: {[p[0] for p in problems]}")
+        print(f"{len(problems)} dives had problems: {problems}")
 
 
 if __name__ == "__main__":
-    main()
+    main("--csv" in sys.argv[1:])

@@ -7,50 +7,52 @@
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync, writeFileSync, renameSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, renameSync } from 'fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA = join(HERE, 'full_dives.json');
 const PARTY_FILE = join(HERE, 'party_answers.json');
+const TIERS_FILE = join(HERE, 'tiers.json');
+const RENDER_FILE = join(HERE, 'render.jq');
 const code = (process.argv[2] ?? '').trim().toUpperCase();
 if (!/^[A-Z]{4}$/.test(code)) {
   console.error('usage: killion watch <ROOMCODE>   (4-letter room code)');
   process.exit(2);
 }
 
-const j = (url) => fetch(url).then(r => r.json().catch(() => ({})));
+// j never rejects: a network hiccup yields {} so a token refresh degrades
+// to a retry instead of crashing the watcher
+const j = (url) => fetch(url).then(r => r.json()).catch(() => ({}));
 let token = (await j('https://krillion.io/api/party/token')).token;
+if (!token) {
+  console.error('error: no guest token from krillion.io (network down?)');
+  process.exit(1);
+}
 const randKey = () =>
   [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
 
-// look up game-verified answers for an exact question (daily data + party record)
+// look up game-verified answers for an exact question: the same render.jq
+// the CLI uses, in exact mode — a fuzzy match on a server-supplied question
+// could silently show another question's answers
 function lookup(question) {
-  const r = spawnSync('jq', ['-c', '--arg', 'q', question,
-    '[.[] as $d | $d.prompts[] | select(.q == $q) | {dive: $d.n, date: $d.date, answers: .answers}] | .[0] // empty',
-    DATA], { encoding: 'utf8' });
-  let daily = null;
-  try { daily = JSON.parse(r.stdout || 'null'); } catch {}
-  let party = [];
-  try { party = JSON.parse(readFileSync(PARTY_FILE, 'utf8'))[question] ?? []; } catch {}
-  if (!daily && !party.length) return null;
-  const inDaily = new Set((daily?.answers ?? []).map(a => a.a.toLowerCase()));
-  const extras = party.filter(a => !inDaily.has(a.a.toLowerCase()));
-  return {
-    source: daily ? (extras.length ? 'daily+party' : 'daily') : 'party',
-    dive: daily?.dive ?? null,
-    date: daily?.date ?? null,
-    answers: [...(daily?.answers ?? []), ...extras],
-  };
+  const r = spawnSync('jq', ['-r', '-f', RENDER_FILE, '--arg', 'q', question,
+    '--arg', 'm', 'exact',
+    '--slurpfile', 'p', existsSync(PARTY_FILE) ? PARTY_FILE : '/dev/null',
+    '--slurpfile', 'T', TIERS_FILE, DATA], { encoding: 'utf8' });
+  try {
+    const o = JSON.parse((r.stdout || '').trim());
+    return o && o.answers ? o : null;
+  } catch { return null; }
 }
 
-const TIER_NAME = { krillion: 'One in a Krillion', deepcut: 'Deep Cut', rare: 'Rare',
-                    schooler: 'Schooler', tooclever: 'Too Clever', plankton: 'Plankton' };
-const TIER_ICON = { krillion: '◆', deepcut: '◆', rare: '●', schooler: '●',
-                    tooclever: '○', plankton: '○' };
-const TIER_ORDER = ['krillion', 'deepcut', 'rare', 'schooler', 'tooclever', 'plankton'];
-const SHOW_CAP = { krillion: 5, deepcut: 12, rare: 6, schooler: 4, tooclever: 3, plankton: 3 };
+// tier table, shared with render.jq + download_full.py (tiers.json)
+const TIERS = JSON.parse(readFileSync(TIERS_FILE, 'utf8'));
+const TIER_ORDER = TIERS.order;
+const pick = (f) => Object.fromEntries(Object.entries(TIERS.tiers).map(([k, v]) => [k, v[f]]));
+const TIER_NAME = pick('name');
+const TIER_ICON = pick('icon');
+const SHOW_CAP = pick('cap');
 
-let leaving = false;
 process.on('SIGINT', () => { flush(); process.exit(0); });
 process.on('SIGTERM', () => { flush(); process.exit(0); });
 
@@ -58,7 +60,7 @@ process.on('SIGTERM', () => { flush(); process.exit(0); });
 let roomCode = code, phase = null, players = [], cat = null;
 let lookupResult = null, lookupFor = null;
 let said = new Map();            // answer.toLowerCase() -> {a, tier}
-let dirty = true, lastSeenSig = '';
+let lastSeenSig = '';
 
 function sig() {
   return [phase, cat?.index, cat?.text, players.filter(p => p.alive).length,
@@ -103,17 +105,17 @@ function draw() {
         if (!left.length) { L.push('    (every answer in this tier has been said)'); continue; }
         for (const a of left.slice(0, SHOW_CAP[t]))
           L.push(`    • ${a.a}${a.seen > 1 ? `  (×${a.seen})` : ''}`);
-        if (left.length > SHOW_CAP[t]) L.push(`    … +${left.length - SHOW_CAP[t]} more — ./killion "${cat.text}"`);
+        if (left.length > SHOW_CAP[t]) L.push(`    … +${left.length - SHOW_CAP[t]} more — ./killion "${cat.text}" --all`);
       }
       const unscored = lookupResult.answers.filter(a => !TIER_ORDER.includes(a.tier));
       if (unscored.length) {
         L.push(`  · unscored (${unscored.length})`);
         for (const a of unscored.slice(0, SHOW_CAP.plankton)) L.push(`    • ${a.a}`);
       }
-    } else if (lookupResult === null && lookupFor === cat.text) {
-      L.push('  no game-verified answers yet (party-only category)');
     } else {
-      L.push('  looking up verified answers…');
+      // lookupIfNeeded() ran synchronously above (spawnSync): null
+      // means no verified answers exist for this question
+      L.push('  no game-verified answers yet (party-only category)');
     }
     if (said.size) {
       L.push('');
@@ -177,10 +179,19 @@ function addSaidFromPlayer(p) {
   }
 }
 
-let ws = null;
+// a 'pass' event is an accepted answer the server scored: mark it as said
+// and record every sighting (duplicates count) for the party dataset
+function applyEvents(events) {
+  for (const ev of events ?? [])
+    if (ev.kind === 'pass' && ev.answer) {
+      if (!said.has(ev.answer.toLowerCase()))
+        said.set(ev.answer.toLowerCase(), { a: ev.answer, tier: ev.tier ?? null });
+      record(ev.answer, ev.tier ?? null);
+    }
+}
+
 function connect() {
-  if (leaving) return;
-  ws = new WebSocket(
+  const ws = new WebSocket(
     `wss://party.krillion.io/rooms/${code}/ws?key=${randKey()}&token=${encodeURIComponent(token)}`);
   ws.onmessage = (e) => {
     const m = JSON.parse(String(e.data));
@@ -189,14 +200,8 @@ function connect() {
       phase = r.phase; players = r.players; cat = r.category;
       // known answers from the current round's event log
       said = new Map();
-      for (const ev of r.events ?? [])
-        if (ev.kind === 'pass' && ev.answer) {
-          if (!said.has(ev.answer.toLowerCase()))
-            said.set(ev.answer.toLowerCase(), { a: ev.answer, tier: ev.tier ?? null });
-          record(ev.answer, ev.tier ?? null);
-        }
+      applyEvents(r.events);
       for (const p of r.players) addSaidFromPlayer(p);
-      dirty = true;
     } else if (m.t === 'patch') {
       const s = m.patch?.set ?? {};
       if (s.phase) phase = s.phase;
@@ -210,25 +215,23 @@ function connect() {
           process.stdout.write('\x07');
         }
       }
-      for (const ev of m.patch?.events ?? [])
-        if (ev.kind === 'pass' && ev.answer) {
-          if (!said.has(ev.answer.toLowerCase()))
-            said.set(ev.answer.toLowerCase(), { a: ev.answer, tier: ev.tier ?? null });
-          record(ev.answer, ev.tier ?? null);
-        }
+      applyEvents(m.patch?.events);
       if (Array.isArray(s.players))
         for (const p of s.players) addSaidFromPlayer(p);
-      dirty = true;
-    }
-    if (dirty) { dirty = false; draw(); }
+    } else return;
+    draw();
   };
   ws.onclose = async (e) => {
-    if (leaving) return;
     if (e.code === 4404) { console.log('\nroom is gone.'); process.exit(1); }
     if (e.code === 4403) { console.log('\nrefused.'); process.exit(1); }
-    if (e.code === 4401) token = (await j('https://krillion.io/api/party/token')).token;
+    if (e.code === 4401) {
+      const t = (await j('https://krillion.io/api/party/token')).token;
+      if (t) token = t;                    // refresh failed: retry with the old one
+    }
     console.log('connection lost, retrying…');
-    setTimeout(connect, 1500).unref?.();
+    // ref'd on purpose: once the socket is gone this timer is the only handle
+    // left, and an unref'd one lets the process exit silently before the retry
+    setTimeout(connect, 1500);
   };
   ws.onerror = () => {};
 }

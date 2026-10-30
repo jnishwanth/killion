@@ -39,8 +39,14 @@ open to change.
 
 - `killion` (bash + fzf + jq): fuzzy-search the known questions, show the
   best verified answers rarest-first, Enter copies an answer to the
-  clipboard. One-shot mode for scripts. `--selftest` validates the dataset
-  against the official API.
+  clipboard. The interactive question list is a self-regenerating cache
+  (`questions.txt`, gitignored) so startup skips the dataset pass, and the
+  answer view is cached per question (re-Enter on the same question is
+  instant; the cache invalidates when a data file is rewritten). One-shot
+  mode for scripts; its text output is display-capped per tier (like
+  watch's view), `--all` lifts the caps, `--json` is always complete.
+  `-h/--help` prints usage (works even without fzf or the dataset).
+  `--selftest` validates the dataset against the official API.
 - `killion watch <CODE>` (node, stdlib): watches a lobby's live question and
   shows the best verified answers, minus what players have already said this
   round. It reads the room's live stream anonymously — the stream is not
@@ -54,12 +60,16 @@ open to change.
 | file | job |
 |---|---|
 | `killion` | CLI entry: fzf interactive, one-shot lookup, `watch` dispatch, `--selftest` |
-| `watch.mjs` | live room watcher + recorder |
-| `render.jq`, `party-render.jq` | answer-list formatting (daily / party-only) |
+| `watch.mjs` | live room watcher + recorder (answer lookup is the CLI's `render.jq` in exact mode) |
+| `render.jq` | query match (exact, else case-insensitive substring; exact-only for watch) + answer-list rendering — capped text for one-shot, full text for fzf/--all, JSON for --json/watch (single jq pass, shared by CLI and watcher) |
+| `selftest.jq` | dataset validation for `--selftest` (single jq pass) |
+| `tiers.json` | shared tier table (order, names, icons, points, display caps) used by `render.jq`, `watch.mjs`, `download_full.py` |
 | `party_answers.json` | earned record of game-verified party answers (append-only by design) |
 | `full_dives.json` | daily-dive dataset: all dives since launch, every accepted answer + tier |
-| `download_full.py` | refreshes `full_dives.json` from public data (the only Python; stdlib only) |
+| `questions.txt` | fzf question list cache (gitignored; killion regenerates it when missing or stale vs `full_dives.json`) |
+| `download_full.py` | refreshes `full_dives.json` from public data (the only Python; stdlib only; `--csv` opt-in also writes `full_answers.csv`) |
 | `official_latest.json` | latest official API reveal; target of `--selftest` |
+| `tests/` | offline test suite: `tests/run.sh` runs the CLI/render battery + a stubbed-WebSocket `watch.mjs` driver against `tests/golden.sha`, plus offline `download_full.py` parser (`tests/kd_parse.py`) and main (`tests/kd_main.py`, stubbed archive + `date.today`; also re-run under a POSIX/C locale to pin the explicit utf-8 writes) tests vs a real archived dive page in `tests/fixtures/` — no network, no live room |
 
 ## Protocol facts (as observed; re-verify if something breaks)
 
@@ -90,10 +100,15 @@ spec.
 
 ## Notes for future work
 
-- The dataset currently covers the daily-dive questions (742) plus whatever
-  has been recorded from lobbies. Party-only categories will be "no verified
+- The dataset currently covers the daily-dive questions in `full_dives.json`
+  (refreshed and reported on by `download_full.py`) plus whatever has been
+  recorded from lobbies. Party-only categories will be "no verified
   data" until recorded — that gap is expected and closes with use.
-- Performance today: jq over the 35 MB dataset is ~0.3 s cold; if that ever
-  stops being good enough, precompute an index — don't add a runtime for it.
+- Performance today: jq over the 35 MB dataset is ~0.3 s cold for a lookup;
+  interactive startup no longer pays it (the fzf question list is cached in
+  `questions.txt`), and neither does a re-Enter on the same question
+  (per-question answer-view cache, invalidated on data-file rewrite).
+  If one-shot speed ever stops being good enough, precompute an index —
+  don't add a runtime for it.
 - Keep request volume to the party service modest and idle (one room stream,
   low patch frequency). It's a hobby game server; be a quiet client.

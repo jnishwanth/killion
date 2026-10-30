@@ -7,5 +7,418 @@
    "firstSeen": "2026-10-29",
    "lastSeen": "2026-10-29"
   }
+ ],
+ "Name a video game console": [
+  {
+   "a": "Atari 2600",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Xbox",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "PlayStation",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Game Boy",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Nintendo 64",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Nintendo Switch",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Wii",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "3DO",
+   "tier": "deepcut",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name an office supply": [
+  {
+   "a": "Pencil",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Paper clip",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Stapler",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "4-color pen",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Thumbtack",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Marker",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a piece of gymnastics apparatus": [
+  {
+   "a": "Highlighter",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Balance beam",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Uneven bars",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Gymnastics mat",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Pommel horse",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Training bar",
+   "tier": "deepcut",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Trampoline",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Ribbon",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Vault",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a word for a way of looking at something": [
+  {
+   "a": "View",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Gaze",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Stare",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Angle",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Glare",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Observe",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a team that played at UEFA Euro 2024": [
+  {
+   "a": "Spain",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "France",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Portugal",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Germany",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "England",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Belgium",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Italy",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a shade of blue": [
+  {
+   "a": "Croatia",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Sky blue",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Prussian blue",
+   "tier": "deepcut",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Azure",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Royal blue",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Cyan",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Celeste",
+   "tier": "deepcut",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Baby blue",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Light blue",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Aqua",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Navy blue",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Dark blue",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Denim",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Indigo",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a snowboarding or skateboarding trick": [
+  {
+   "a": "Flip",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Double kickflip",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Boardslide",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "180",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Alley-oop",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "360",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "1080",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
  ]
 }
