@@ -182,6 +182,50 @@ else
   bad "watch: 4404 close file missing earlier entries (file above)"
 fi
 
+# corrupt-party-file variant (M2): a corrupt party_answers.json must be
+# quarantined on flush (rename to .corrupt-<date> + loud stderr naming the
+# reason and the destination), never silently replaced; the run must still
+# complete (exit 0), the recorded entries must land in a fresh file, and
+# the post-quarantine flush must merge normally — both rounds' entries
+# present, and Go seen==2 (the quarantined pre-seed's Go must NOT merge;
+# the healthy run's is seen==3). Two corruptions: unparseable JSON
+# (bracket imbalance — the audit's experiment) and valid JSON with a
+# wrong shape (top-level array). Fresh copy dir; semantic assertions only
+# (like the netfail/4404 variants): no golden line.
+corrupt_case() { # $1 = name  $2 = corrupt bytes
+  local d="$WORK/watch_corrupt_$1"
+  local rc msgdest
+  mkdir -p "$d"
+  cp "$H/tiers.json" "$H/watch.mjs" "$H/render.jq" "$d/"
+  seed_harness "$d"
+  printf '%s' "$2" > "$d/party_answers.json"
+  cp "$d/party_answers.json" "$d/corrupt.seed"
+  node "$HERE/kw_harness.mjs" "$d" "$d/drawn.txt" > "$d/out.txt" 2>&1
+  rc=$?
+  # the loud error names where the data went — hold it to that: the
+  # file it points at must exist and be the corrupt bytes, intact
+  msgdest=$(sed -n 's/.*saved to \([^;]*\); continuing.*/\1/p' "$d/out.txt" | head -1)
+  if [[ $rc -eq 0 ]] && grep -q 'party_answers.json is corrupt' "$d/out.txt" \
+     && [[ -n $msgdest && -f $msgdest ]] && cmp -s "$msgdest" "$d/corrupt.seed"; then
+    ok "watch: corrupt party file ($1) quarantined with loud error, bytes intact, run exits 0"
+  else
+    sed 's/^/    /' "$d/out.txt"
+    bad "watch: corrupt party file ($1) not quarantined (rc=$rc, saved-to: ${msgdest:-none})"
+  fi
+  if jq -e '(.["Name a strategy board game"] | map(select(.a=="Go"))[0] | .seen==2)
+      and (.["Name a strategy board game"] | map(select(.a=="Gomoku"))[0] | .seen==1)
+      and (.["A party-only question nobody asked daily"] | map(select(.a=="Fresh answer"))[0] | .seen==1)
+      and (.["A party-only question nobody asked daily"] | map(select(.a=="Trick answer"))[0] | .seen==1)' \
+      "$d/party_answers.json" >/dev/null 2>&1; then
+    ok "watch: corrupt party file ($1) - recorded entries land, post-quarantine flush merges"
+  else
+    jq '.' "$d/party_answers.json" 2>/dev/null | head -20 | sed 's/^/    /'
+    bad "watch: corrupt party file ($1) - recorded entries missing (file above)"
+  fi
+}
+corrupt_case unparseable '{"broken": '
+corrupt_case wrongshape '[{"a":"Go","tier":"rare","seen":1,"firstSeen":"2026-10-29","lastSeen":"2026-10-29"}]'
+
 # the harness's golden line — part of the full manifest, compared alone when
 # the dataset is missing (the harness is the only dataset-independent check)
 sha() { shasum -a 256 "$1" | awk '{print $1}'; }

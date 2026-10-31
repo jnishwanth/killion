@@ -11,4 +11,6 @@ data.json
 # misc
 __pycache__/
 *.tmp
+# quarantined corrupt party files (see watch.mjs loadExisting)
+party_answers.json.corrupt-*
 .DS_Store

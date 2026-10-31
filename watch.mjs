@@ -173,10 +173,50 @@ function record(text, tier) {
   qm.set(k, e);
 }
 
+// the party file is an earned record: a corrupt one (unparseable, or not
+// the object-of-arrays shape flush() merges against) must be quarantined,
+// never silently replaced — replacing it destroys the record. Quarantine
+// = rename to party_answers.json.corrupt-<date> (collision-suffixed, so a
+// second same-day quarantine can't overwrite the first) + a loud stderr
+// line, then keep buffering/flushing on a fresh file so the rest of the
+// session works normally (the audit's "back up and keep buffering").
+function corruptReason(v) {
+  if (typeof v !== 'object' || v === null || Array.isArray(v))
+    return 'top level is not a JSON object';
+  for (const [q, entries] of Object.entries(v)) {
+    if (!Array.isArray(entries)) return `answers for "${q}" are not an array`;
+    for (const e of entries)
+      if (typeof e !== 'object' || e === null || typeof e.a !== 'string')
+        return `an entry under "${q}" is not an object with a string answer`;
+  }
+  return null;
+}
+
+function quarantine(reason) {
+  const date = today();
+  let dest = `${PARTY_FILE}.corrupt-${date}`;
+  for (let i = 1; existsSync(dest); i++) dest = `${PARTY_FILE}.corrupt-${date}-${i}`;
+  renameSync(PARTY_FILE, dest);
+  console.error(`error: party_answers.json is corrupt (${reason}) — saved to ${dest}; continuing with a fresh file`);
+  return {};
+}
+
+function loadExisting() {
+  if (!existsSync(PARTY_FILE)) return {};
+  let raw;
+  try { raw = readFileSync(PARTY_FILE, 'utf8'); }
+  catch (e) { return quarantine(`unreadable (${e.code ?? e.message})`); }
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch { return quarantine('not valid JSON'); }
+  const reason = corruptReason(parsed);
+  if (reason) return quarantine(reason);
+  return parsed;
+}
+
 function flush() {
   if (!recorded.size) return;
-  let existing = {};
-  try { existing = JSON.parse(readFileSync(PARTY_FILE, 'utf8')); } catch {}
+  const existing = loadExisting();
   const date = today();
   for (const [qL, qm] of recorded) {
     const q = qText.get(qL);
