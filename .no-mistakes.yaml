@@ -1,0 +1,8 @@
+# no-mistakes repo config
+#
+# This repo intentionally has no CI/CD (no workflow files, no checks
+# register on PRs). Declare it so the CI step treats a zero-check PR
+# head as ready instead of waiting for checks that never arrive.
+# This field is read from the default branch only, so the file must
+# live on main to take effect (a feature branch cannot self-declare).
+no_ci: true
