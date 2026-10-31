@@ -112,13 +112,6 @@
  ],
  "Name a piece of gymnastics apparatus": [
   {
-   "a": "Highlighter",
-   "tier": "schooler",
-   "seen": 1,
-   "firstSeen": "2026-10-30",
-   "lastSeen": "2026-10-30"
-  },
-  {
    "a": "Balance beam",
    "tier": "plankton",
    "seen": 1,
@@ -272,13 +265,6 @@
  ],
  "Name a shade of blue": [
   {
-   "a": "Croatia",
-   "tier": "schooler",
-   "seen": 1,
-   "firstSeen": "2026-10-30",
-   "lastSeen": "2026-10-30"
-  },
-  {
    "a": "Sky blue",
    "tier": "plankton",
    "seen": 1,
@@ -415,6 +401,312 @@
   },
   {
    "a": "1080",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a Spider-Man movie": [
+  {
+   "a": "Spider-Man",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Spider-Man: Into the Spider-Verse",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Spider-Man: Brand New Day",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Spider-Man: Homecoming",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Spider-Man 2",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Spider-Man: Far From Home",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Spider-Man 3",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Spider-Man: No Way Home",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a unit of time (units with a defined length)": [
+  {
+   "a": "Millisecond",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Second",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Microsecond",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Eon",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Picosecond",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Century",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Nanosecond",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Decade",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Decasecond",
+   "tier": "deepcut",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Millennium",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Year",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Month",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Megasecond",
+   "tier": "deepcut",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Week",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Hour",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a founding member of the United Nations in 1945 (former country names count)": [
+  {
+   "a": "United States",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "France",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "United Kingdom",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Canada",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Mexico",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Soviet Union",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a piece of science lab equipment": [
+  {
+   "a": "Erlenmeyer flask",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Beaker",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Pipette",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Volumetric flask",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Microscope",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Bunsen burner",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a subatomic particle": [
+  {
+   "a": "Proton",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Boson",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Electron",
+   "tier": "plankton",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Lepton",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Muon",
+   "tier": "rare",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  },
+  {
+   "a": "Quark",
+   "tier": "schooler",
+   "seen": 1,
+   "firstSeen": "2026-10-30",
+   "lastSeen": "2026-10-30"
+  }
+ ],
+ "Name a country whose name starts with C": [
+  {
+   "a": "Cuba",
    "tier": "schooler",
    "seen": 1,
    "firstSeen": "2026-10-30",
