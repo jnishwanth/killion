@@ -62,6 +62,32 @@ let lookupResult = null, lookupFor = null;
 let said = new Map();            // answer.toLowerCase() -> {a, tier}
 let lastSeenSig = '';
 
+// Round provenance for the state channel: the server can deliver a players
+// array whose lastAnswer still holds the previous round's value (an early
+// new-round patch, or a reconnect snap), so a lastAnswer present at round
+// start is NOT an answer to the current question. We baseline each player's
+// lastAnswer text at round start (snap + newRound patch) and the state
+// channel only records/shows values that CHANGE after the round started.
+// A player who re-answers their own baseline text is captured by their pass
+// event, not the state channel. Accepted tradeoff: joining mid-round, a
+// pre-join answer absent from the snap's event log is dropped from the
+// record (the said display still shows it when the log has it). Correctness
+// over completeness — a wrong suggestion mid-round is worse than a missing
+// entry. (Players without an id can't be baselined; for them the state
+// channel keeps its record-as-seen behavior.)
+let baseline = new Map();        // player id -> lastAnswer text (lowercase) at round start
+const laText = (p) => {
+  const la = p.lastAnswer;
+  return typeof la === 'string' ? la : (la?.text ?? null);
+};
+function setBaseline(ps) {
+  baseline = new Map();
+  for (const p of ps) {
+    const t = laText(p);
+    if (p.id != null && t) baseline.set(p.id, t.toLowerCase());
+  }
+}
+
 function sig() {
   return [phase, cat?.index, cat?.text, players.filter(p => p.alive).length,
     [...said.values()].map(v => v.a).sort().join('|')].join('§');
@@ -170,11 +196,13 @@ function flush() {
 }
 
 function addSaidFromPlayer(p) {
-  const la = p.lastAnswer;
-  const text = typeof la === 'string' ? la : (la?.text ?? null);
-  const tier = (la && typeof la === 'object' && la.tier) || null;
-  if (text && !said.has(text.toLowerCase())) {
-    said.set(text.toLowerCase(), { a: text, tier });
+  const text = laText(p);
+  if (!text) return;
+  const k = text.toLowerCase();
+  if (baseline.get(p.id) === k) return;   // round-start value: stale — neither said nor recorded
+  const tier = (p.lastAnswer && typeof p.lastAnswer === 'object' && p.lastAnswer.tier) || null;
+  if (!said.has(k)) {
+    said.set(k, { a: text, tier });
     record(text, tier);
   }
 }
@@ -198,6 +226,7 @@ function connect() {
     if (m.t === 'snap') {
       const r = m.room;
       phase = r.phase; players = r.players; cat = r.category;
+      setBaseline(players);     // lastAnswers now are provenance, not current-round answers
       // known answers from the current round's event log
       said = new Map();
       applyEvents(r.events);
@@ -212,6 +241,7 @@ function connect() {
         if (newRound) {
           flush();                    // persist previous rounds' answers
           said = new Map();           // fresh round: nothing said yet
+          setBaseline(players);       // carried (or later stale) lastAnswers are pre-round values
           process.stdout.write('\x07');
         }
       }
