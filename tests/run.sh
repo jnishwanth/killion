@@ -103,6 +103,27 @@ fact 'player lastAnswer without tier recorded once' \
   '.["Name a strategy board game"] | map(select(.a=="No tier answer"))[0] | .tier==null and .seen==1'
 fact 'new-round answer flushed under its own (party-only) question' \
   '.["A party-only question nobody asked daily"] | map(select(.a=="Fresh answer"))[0] | .seen==1 and .tier=="plankton"'
+fact 'snap-stale lastAnswer (no pass event) is not recorded anywhere' \
+  '[.[] | .[] | .a] | index("Stale snap") | not'
+fact 'stale lastAnswers carried by the new-round patch are not recorded under the new question' \
+  '.["A party-only question nobody asked daily"] | [.[].a]
+   | (index("Rithmomachia") | not) and (index("No tier answer") | not) and (index("Stale snap") | not)'
+fact 'pass event matching a baseline is still recorded (events are unconditional)' \
+  '.["A party-only question nobody asked daily"] | map(select(.a=="Go"))[0] | .tier=="rare" and .seen==1'
+fact 'lastAnswer change after round start is recorded (state-channel transition)' \
+  '.["A party-only question nobody asked daily"] | map(select(.a=="Trick answer"))[0] | .tier=="rare" and .seen==1'
+
+# stale round-start values must not be shown as "already said" either:
+# "Stale snap" never appears in the draw at all, and round 2's said line
+# is exactly the event-sourced answers plus Dave's round-2 transition
+if grep -q 'Stale snap' "$H/drawn.txt"; then
+  bad "display: stale round-start lastAnswer shown as said"
+else
+  ok "display: stale round-start lastAnswers never shown"
+fi
+grep -q 'said this round: "Fresh answer" (Plankton)  "Go" (Rare)  "Trick answer" (Rare)' "$H/drawn.txt" \
+  && ok "display: round-2 said line is only post-round-start answers" \
+  || bad "display: round-2 said line wrong (see $H/drawn.txt)"
 
 # the watcher must survive a disconnect: the harness fired a non-fatal close
 # above; a second WebSocket must have been constructed (an unref'd retry

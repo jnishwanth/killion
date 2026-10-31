@@ -34,8 +34,17 @@ const last = () => socks[socks.length - 1];
 
 // scripted sequence: covers event replay (incl. duplicate + tierless pass
 // events, non-pass event), string/object lastAnswer, unchanged patch (no
-// redraw), player update, and two new-round patches (flush + reset):
-// round 2 is a party-only question (lookup from the pre-seeded party file),
+// redraw), player update, and three new-round patches (flush + reset).
+// Round-provenance cases (the cross-round contamination fix):
+//  - p4 Dave's snap lastAnswer has no pass event: a round-start value is
+//    neither recorded nor shown as said;
+//  - the round-2 patch carries the players array BEFORE the server cleared
+//    lastAnswer: every carried value is baselined, none is recorded under
+//    the new question, while the 'Go' pass event (== p1's baseline) proves
+//    events are recorded unconditionally;
+//  - p4's round-2 lastAnswer change is a post-round-start transition and
+//    must still be recorded via the state channel.
+// Round 2 is a party-only question (lookup from the pre-seeded party file),
 // round 3 is a case-variant of the daily question — exact mode must NOT
 // match it (a fuzzy fallback would leak the daily list into the draw).
 const msgs = [
@@ -45,6 +54,7 @@ const msgs = [
         { id: 'p1', name: 'Alice', alive: true,  lastAnswer: { text: 'Go', tier: 'rare' } },
         { id: 'p2', name: 'Bob',   alive: true,  lastAnswer: 'Rithmomachia' },
         { id: 'p3', name: 'Cara',  alive: false, lastAnswer: null },
+        { id: 'p4', name: 'Dave',  alive: true,  lastAnswer: { text: 'Stale snap', tier: 'schooler' } },
       ],
       category: { index: 1, text: 'Name a strategy board game' },
       events: [
@@ -62,11 +72,28 @@ const msgs = [
       { id: 'p1', name: 'Alice', alive: true,  lastAnswer: { text: 'Go', tier: 'rare' } },
       { id: 'p2', name: 'Bob',   alive: false, lastAnswer: 'Rithmomachia' },
       { id: 'p3', name: 'Cara',  alive: true,  lastAnswer: { text: 'No tier answer' } },
+      { id: 'p4', name: 'Dave',  alive: true,  lastAnswer: { text: 'Stale snap', tier: 'schooler' } },
   ] } } },
   { t: 'patch', patch: {
-      set: { phase: 'answer', category: { index: 2, text: 'A party-only question nobody asked daily' } },
-      events: [{ kind: 'pass', answer: 'Fresh answer', tier: 'plankton' }],
+      set: { phase: 'answer',
+             category: { index: 2, text: 'A party-only question nobody asked daily' },
+             players: [   // stale: round 1's array carried with the new category
+      { id: 'p1', name: 'Alice', alive: true,  lastAnswer: { text: 'Go', tier: 'rare' } },
+      { id: 'p2', name: 'Bob',   alive: false, lastAnswer: 'Rithmomachia' },
+      { id: 'p3', name: 'Cara',  alive: true,  lastAnswer: { text: 'No tier answer' } },
+      { id: 'p4', name: 'Dave',  alive: true,  lastAnswer: { text: 'Stale snap', tier: 'schooler' } },
+  ] },
+      events: [
+        { kind: 'pass', answer: 'Fresh answer', tier: 'plankton' },
+        { kind: 'pass', answer: 'Go', tier: 'rare' },   // == p1's baseline: events are unconditional
+      ],
   } },
+  { t: 'patch', patch: { set: { players: [   // Dave answers in round 2: a transition
+      { id: 'p1', name: 'Alice', alive: true,  lastAnswer: { text: 'Go', tier: 'rare' } },
+      { id: 'p2', name: 'Bob',   alive: false, lastAnswer: 'Rithmomachia' },
+      { id: 'p3', name: 'Cara',  alive: true,  lastAnswer: { text: 'No tier answer' } },
+      { id: 'p4', name: 'Dave',  alive: true,  lastAnswer: { text: 'Trick answer', tier: 'rare' } },
+  ] } } },
   { t: 'patch', patch: { set: { phase: 'answer', category: { index: 3, text: 'name a strategy board game' } } } },
 ];
 
