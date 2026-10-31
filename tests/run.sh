@@ -54,10 +54,8 @@ if [[ $fails -gt 0 ]]; then echo "RESULT: FAIL (syntax)"; exit 1; fi
 # --- watch.mjs harness -----------------------------------------------------
 # dataset-independent (synthetic heredoc data below): runs before the dataset
 # gate, so a fresh checkout still gets the watch.mjs checks
-H="$WORK/watch"
-mkdir -p "$H"
-cp "$ROOT/tiers.json" "$ROOT/watch.mjs" "$ROOT/render.jq" "$H/"
-cat > "$H/full_dives.json" <<'EOF'
+seed_harness() { # $1 = dir: the synthetic harness dataset + pre-seeded party file
+  cat > "$1/full_dives.json" <<'EOF'
 [ { "n": 1, "date": "2026-10-29", "prompts": [
   { "q": "Name a strategy board game", "answers": [
     { "a": "Chess", "tier": "deepcut", "pts": 85, "quip": null },
@@ -68,11 +66,11 @@ cat > "$H/full_dives.json" <<'EOF'
     { "a": "Parchisi", "tier": "plankton", "pts": 10, "quip": null },
     { "a": "Halma", "tier": "plankton", "pts": 10, "quip": null } ] } ] } ]
 EOF
-# pre-seeded party file: the daily question carries one entry that duplicates
-# a daily answer (Go: must be deduped; seen merges on flush) and one genuine
-# extra (Shogi: must be rendered into the tier list); the party-only question
-# exists only in this file (the harness dataset has no such prompt)
-cat > "$H/party_answers.json" <<'EOF'
+  # pre-seeded party file: the daily question carries one entry that duplicates
+  # a daily answer (Go: must be deduped; seen merges on flush) and one genuine
+  # extra (Shogi: must be rendered into the tier list); the party-only question
+  # exists only in this file (the harness dataset has no such prompt)
+  cat > "$1/party_answers.json" <<'EOF'
 {
  "Name a strategy board game": [
   {"a":"Go","tier":"rare","seen":1,"firstSeen":"2026-10-29","lastSeen":"2026-10-29"},
@@ -84,6 +82,11 @@ cat > "$H/party_answers.json" <<'EOF'
  ]
 }
 EOF
+}
+H="$WORK/watch"
+mkdir -p "$H"
+cp "$ROOT/tiers.json" "$ROOT/watch.mjs" "$ROOT/render.jq" "$H/"
+seed_harness "$H"
 node "$HERE/kw_harness.mjs" "$H" "$H/drawn.txt" > "$H/stdout.txt" 2>&1
 echo $? > "$H/exit"
 [[ -f $H/drawn.txt ]] || bad "harness crashed"
@@ -139,6 +142,44 @@ if [[ $? -eq 1 ]] && grep -q 'no guest token' "$H/netfail.txt"; then
 else
   sed 's/^/    /' "$H/netfail.txt"
   bad "watch: token-fetch failure path"
+fi
+
+# fatal-close variant (4404 room-gone; 4403 refused is the same code path):
+# the harness appends a pass event AFTER the last new-round boundary, then
+# fires the close — watch.mjs must flush the party file on the way out
+# (exit 1, existing message). Fresh copy dir so the file after exit is
+# exactly preseed + this run's records. Semantic assertions only (like the
+# netfail variant): no golden line.
+H4404="$WORK/watch4404"
+mkdir -p "$H4404"
+cp "$H/tiers.json" "$H/watch.mjs" "$H/render.jq" "$H4404/"
+seed_harness "$H4404"
+KSTUB_CLOSE=4404 node "$HERE/kw_harness.mjs" "$H4404" "$H4404/drawn.txt" > "$H4404/out.txt" 2>&1
+if [[ $? -eq 1 ]] && grep -q 'room is gone' "$H4404/out.txt"; then
+  ok "watch: fatal close (4404) exits 1 with the existing message"
+else
+  sed 's/^/    /' "$H4404/out.txt"
+  bad "watch: fatal close (4404) exit/message"
+fi
+# the regression pin: the late answer landed after the last new-round flush
+# (in memory only at close time) — the onclose flush must have written it.
+# Absent in the pre-fix code, which exited without flushing.
+if jq -e '.["name a strategy board game"] | map(select(.a=="Late answer"))[0]
+    | .tier=="rare" and .seen==1' "$H4404/party_answers.json" >/dev/null 2>&1; then
+  ok "watch: answer after the last round boundary survives the 4404 close"
+else
+  jq -r '.["name a strategy board game"] // "question missing"' "$H4404/party_answers.json" 2>/dev/null | sed 's/^/    /'
+  bad "watch: late answer lost on 4404 close (file above)"
+fi
+# everything recorded earlier must be there too: the pre-flush rounds merged
+# and the pre-seeded counts intact (Go = 1 preseed + 2 snap events = 3)
+if jq -e '(.["A party-only question nobody asked daily"] | map(select(.a=="Trick answer"))[0] | .tier=="rare" and .seen==1)
+    and (.["Name a strategy board game"] | map(select(.a=="Go"))[0] | .seen==3)' \
+    "$H4404/party_answers.json" >/dev/null 2>&1; then
+  ok "watch: 4404 close keeps earlier rounds and pre-seeded counts"
+else
+  jq '.' "$H4404/party_answers.json" 2>/dev/null | head -20 | sed 's/^/    /'
+  bad "watch: 4404 close file missing earlier entries (file above)"
 fi
 
 # the harness's golden line — part of the full manifest, compared alone when

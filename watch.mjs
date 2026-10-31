@@ -222,7 +222,12 @@ function connect() {
   const ws = new WebSocket(
     `wss://party.krillion.io/rooms/${code}/ws?key=${randKey()}&token=${encodeURIComponent(token)}`);
   ws.onmessage = (e) => {
-    const m = JSON.parse(String(e.data));
+    // a non-JSON frame (server bug, proxy garbage) must not kill the
+    // watcher: drop it and keep running. Dropped silently, like unknown
+    // frame types below — a garbage frame stays invisible in the output
+    // (the golden pins exactly that).
+    let m;
+    try { m = JSON.parse(String(e.data)); } catch { return; }
     if (m.t === 'snap') {
       const r = m.room;
       phase = r.phase; players = r.players; cat = r.category;
@@ -252,8 +257,11 @@ function connect() {
     draw();
   };
   ws.onclose = async (e) => {
-    if (e.code === 4404) { console.log('\nroom is gone.'); process.exit(1); }
-    if (e.code === 4403) { console.log('\nrefused.'); process.exit(1); }
+    // natural death (4404 room-gone, 4403 refused — same path): flush
+    // first, so answers recorded since the last round boundary — still in
+    // memory — are not lost with the process
+    if (e.code === 4404) { flush(); console.log('\nroom is gone.'); process.exit(1); }
+    if (e.code === 4403) { flush(); console.log('\nrefused.'); process.exit(1); }
     if (e.code === 4401) {
       const t = (await j('https://krillion.io/api/party/token')).token;
       if (t) token = t;                    // refresh failed: retry with the old one
