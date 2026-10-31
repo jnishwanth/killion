@@ -222,12 +222,13 @@ function connect() {
   const ws = new WebSocket(
     `wss://party.krillion.io/rooms/${code}/ws?key=${randKey()}&token=${encodeURIComponent(token)}`);
   ws.onmessage = (e) => {
-    // a non-JSON frame (server bug, proxy garbage) must not kill the
-    // watcher: drop it and keep running. Dropped silently, like unknown
-    // frame types below — a garbage frame stays invisible in the output
-    // (the golden pins exactly that).
+    // a frame that is not a JSON object (proxy garbage, a bare null)
+    // must not kill the watcher: drop it and keep running. Dropped
+    // silently, like unknown frame types below — a garbage frame stays
+    // invisible in the output (the golden pins exactly that).
     let m;
     try { m = JSON.parse(String(e.data)); } catch { return; }
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return;
     if (m.t === 'snap') {
       const r = m.room;
       phase = r.phase; players = r.players; cat = r.category;

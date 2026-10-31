@@ -39,9 +39,9 @@ globalThis.WebSocket = class {
 const last = () => socks[socks.length - 1];
 
 // scripted sequence: covers event replay (incl. duplicate + tierless pass
-// events, non-pass event), a non-JSON frame (dropped, watcher keeps
-// running), string/object lastAnswer, unchanged patch (no redraw), player
-// update, and three new-round patches (flush + reset).
+// events, non-pass event), non-JSON and non-object frames (dropped, the
+// watcher keeps running), string/object lastAnswer, unchanged patch (no
+// redraw), player update, and three new-round patches (flush + reset).
 // Round-provenance cases (the cross-round contamination fix):
 //  - p4 Dave's snap lastAnswer has no pass event: a round-start value is
 //    neither recorded nor shown as said;
@@ -74,6 +74,7 @@ const msgs = [
   { t: 'patch', patch: { events: [{ kind: 'pass', answer: 'Gomoku', tier: 'schooler' }] } },
   { t: 'ping' },                                    // unknown type -> ignored, no redraw
   '{ not json',                                     // non-JSON frame -> dropped, keeps running
+  'null',                                           // JSON, not an object -> dropped, keeps running
   { t: 'patch' },                                   // no patch field -> no crash
   { t: 'patch', patch: { set: { phase: 'answer' } } },   // no change -> no redraw
   { t: 'patch', patch: { set: { players: [
@@ -117,7 +118,8 @@ if (closeCode !== null)
 await import(join(repo, 'watch.mjs'));
 const first = last();
 if (!first) { realWrite('harness: ERROR — WebSocket never constructed\n'); process.exit(1); }
-// string entries are raw (non-JSON) frames; objects are JSON-stringified
+// string entries are raw frames (non-JSON or non-object JSON); objects
+// are JSON-stringified
 for (const m of msgs) first.onmessage({ data: typeof m === 'string' ? m : JSON.stringify(m) });
 
 writeFileSync(outFile, drawn.join(''));
