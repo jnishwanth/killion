@@ -6,10 +6,11 @@ using only answers the game itself has verified.
 
 ## Setup
 
-Requirements: `bash`, `jq`, `fzf`, `node >= 22`, `python3` (macOS `pbcopy`
-for the clipboard). `node` is only used by `killion watch`, which needs the
-global WebSocket that Node enables by default only from v22 — on older nodes
-it fails fast with a clean "needs node >= 22" error instead of a stack trace.
+Requirements: `bash`, `jq`, `fzf` (interactive mode only), `node >= 22`,
+`python3` (macOS `pbcopy` for the clipboard). `node` is only used by
+`killion watch`, which needs the global WebSocket that Node enables by
+default only from v22 — on older nodes it fails fast with a clean "needs
+node >= 22" error instead of a stack trace.
 
 ```sh
 git clone git@github.com:jnishwanth/killion.git
