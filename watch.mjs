@@ -20,6 +20,16 @@ if (!/^[A-Z]{4}$/.test(code)) {
   process.exit(2);
 }
 
+// global WebSocket exists by default only on node >= 22 (global WebCrypto
+// since 19, so the WebSocket check is the binding one): fail fast with a
+// clean one-line error before any network, not a raw ReferenceError after
+// the token fetch (audit M3). tests/run.sh pins this offline via
+// `node --no-experimental-websocket`
+if (typeof WebSocket === 'undefined') {
+  console.error('error: no global WebSocket — killion watch needs node >= 22');
+  process.exit(1);
+}
+
 // j never rejects: a network hiccup yields {} so a token refresh degrades
 // to a retry instead of crashing the watcher
 const j = (url) => fetch(url).then(r => r.json()).catch(() => ({}));

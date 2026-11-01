@@ -198,7 +198,7 @@ main() {
       exit 2
     fi
   elif [[ ${rest[0]} == watch ]]; then
-    command -v node >/dev/null || { echo "error: watch mode needs node" >&2; exit 1; }
+    command -v node >/dev/null || { echo "error: watch mode needs node >= 22" >&2; exit 1; }
     exec node "$HERE/watch.mjs" "${rest[1]:-}"
   elif (( as_json )); then
     one_shot json "${rest[@]}" || return 1
