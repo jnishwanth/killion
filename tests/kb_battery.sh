@@ -54,6 +54,28 @@ run() {
   echo "$?" > "$OUT/$name.code"
 }
 
+# fzf-less variant of run(): the PATH sees only bin_nofzf plus /usr/bin:
+# /bin (stock macOS has no fzf, no jq, no node there). bin_nofzf supplies
+# symlinks to the real jq and the modern bash the shebang needs (the system
+# /bin/bash 3.2 chokes on the top-level declare -A) and a stub node that
+# records its argv (KSTUB_NODELOG) and exits 0 — the watch case is tested
+# without touching the network (audit M4: only interactive mode needs fzf)
+mkdir -p bin_nofzf
+ln -sf "$(command -v jq)" bin_nofzf/jq
+ln -sf "$(command -v bash)" bin_nofzf/bash
+cat > bin_nofzf/node <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "${KSTUB_NODELOG:?}"
+exit 0
+EOF
+chmod +x bin_nofzf/node
+nofzf_run() {
+  local name="$1"; shift
+  PATH="$R/bin_nofzf:/usr/bin:/bin" KSTUB_NODELOG="$OUT/node_$name.log" \
+    ./killion "$@" > "$OUT/$name.out" 2> "$OUT/$name.err"
+  echo "$?" > "$OUT/$name.code"
+}
+
 # the hair question's party entries are all genuine extras (7 > rare cap 6):
 # pins the uncapped "+ party-verified extras" section in the shared builder
 run 01_text_daily        "Name a hair type, texture, or natural color"
@@ -70,6 +92,13 @@ run 11_selftest          --selftest
 run 12_usage             </dev/null
 run 17_help              --help
 run 18_h                 -h
+# fzf-less PATH: one-shot + selftest must work without fzf, byte-identical
+# to the with-fzf runs (02's question, 11's mode); watch dispatches to
+# node (the stub records the exec). Must run before the official-file
+# corruption below (cases 20/24)
+nofzf_run 28_nofzf_oneshot   "Name a strategy board game"
+nofzf_run 29_nofzf_selftest  --selftest
+nofzf_run 30_nofzf_watch     watch ABCD
 run 19_json_ambiguous    "Name a" --json
 # all party entries dup daily answers: source must be "daily" (no extras exist),
 # pinning the extras-based source semantics

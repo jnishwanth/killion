@@ -14,7 +14,7 @@
 # watch.mjs harness (comparing its kw/harness golden line), skips the rest,
 # exits 0, and prints the remedy; --regen refuses without the dataset.
 #
-# The golden covers the CLI/render battery (24 cases: sha of stdout and
+# The golden covers the CLI/render battery (27 cases: sha of stdout and
 # stderr SEPARATELY + exit code), the interactive copy path (4 cases, real
 # killion on a pty with stubbed fzf/pbcopy) and the offline watch.mjs driver
 # (drawn stdout + harness stdout + exit). Hashing the streams separately
@@ -281,7 +281,7 @@ if [[ -n $missing ]]; then
   echo "remedy: python3 download_full.py   (then re-run tests/run.sh)"
   echo
   echo "skipped (all dataset-dependent): download_full.py parser + main tests"
-  echo "(incl. the POSIX/C-locale run), the 24-case CLI/render battery, the"
+  echo "(incl. the POSIX/C-locale run), the 27-case CLI/render battery, the"
   echo "interactive pty copy / question-list cache / answer-view cache checks,"
   echo "the one-shot timing guard, and the kb/* golden lines (the dataset-"
   echo "independent watch.mjs harness above still ran; the golden compare"
@@ -351,12 +351,42 @@ cp "$ROOT/killion" "$ROOT/render.jq" "$ROOT/selftest.jq" "$ROOT/tiers.json" \
    "$ROOT/full_dives.json" "$ROOT/official_latest.json" "$B/"
 bash "$HERE/kb_battery.sh" "$B" "$B/out" || bad "battery crashed"
 
+# fzf-less battery cases (M4): the golden pins that one-shot/selftest output
+# is unchanged without fzf; the stub node's log proves the watch dispatch
+# actually reached node (a fzf check leaking into the dispatch would exit 1
+# with an error before it, leaving the log absent)
+if [[ ! -s $B/out/30_nofzf_watch.err ]] \
+   && [[ $(sed -n 1p "$B/out/node_30_nofzf_watch.log" 2>/dev/null) == */watch.mjs ]] \
+   && [[ $(sed -n 2p "$B/out/node_30_nofzf_watch.log" 2>/dev/null) == ABCD ]]; then
+  ok "nofzf: watch dispatch reached node (watch.mjs + room code)"
+else
+  { sed 's/^/    /' "$B/out/30_nofzf_watch.err" 2>/dev/null
+    sed 's/^/    /' "$B/out/node_30_nofzf_watch.log" 2>/dev/null; }
+  bad "nofzf: watch dispatch did not reach node (above)"
+fi
+
+# help on a bare machine (no jq, no fzf, no data files): the help shortcut
+# runs before every prerequisite — usage to stdout, exit 0, no files created
+mkdir -p "$WORK/bare"
+cp "$ROOT/killion" "$WORK/bare/"
+(cd "$WORK/bare" && PATH=/usr/bin:/bin ./killion --help) \
+  > "$WORK/bare.out" 2> "$WORK/bare.err"
+rc=$?
+if [[ $rc -eq 0 ]] && grep -q 'usage: killion' "$WORK/bare.out" \
+   && [[ ! -s $WORK/bare.err && ! -f $WORK/bare/party_answers.json ]]; then
+  ok "bare: --help works with no jq, no fzf, no data (no files created)"
+else
+  sed 's/^/    /' "$WORK/bare.out" "$WORK/bare.err"
+  bad "bare: --help (rc=$rc)"
+fi
+
 KB_CASES="01_text_daily 02_text_daily_extras 03_json_daily 04_text_partial
 05_text_no_match 06_text_empty 07_text_ambiguous 08_text_party_only
 09_json_party_only 10_text_cash 11_selftest 12_usage
 13_itrm_quip 14_itrm_seen 15_itrm_plain 16_itrm_header
 17_help 18_h 19_json_ambiguous 20_selftest_fail 21_json_dedup_all 22_all
-23_party_overcap 24_selftest_malformed"
+23_party_overcap 24_selftest_malformed
+28_nofzf_oneshot 29_nofzf_selftest 30_nofzf_watch"
 
 # --- interactive copy path (pty + stubbed fzf/pbcopy) ---------------------
 # the fzf-driven flow the one-shot battery can't reach: run the real killion
@@ -424,6 +454,22 @@ iterm 13_itrm_quip   '    Go  — two moves and the game is lost'  Go
 iterm 14_itrm_seen   '    Rithmomachia  (×2)'                    Rithmomachia
 iterm 15_itrm_plain  '    Go'                                    Go
 iterm 16_itrm_header '  ● 60 · Rare (2)'                         -
+
+# interactive without fzf (M4): a clear error before any file is created —
+# fresh copy WITHOUT party_answers.json or questions.txt, so any creation
+# is visible; driven on a pty like the iterm cases (interactive needs a TTY)
+mkdir -p "$B/nofzf_int"
+cp "$B/killion" "$B/render.jq" "$B/selftest.jq" "$B/tiers.json" \
+   "$B/full_dives.json" "$B/official_latest.json" "$B/nofzf_int/"
+script -q "$B/nofzf_int/tty" bash -c \
+  "cd '$B/nofzf_int' && PATH='$B/bin_nofzf:/usr/bin:/bin' ./killion" >/dev/null 2>&1
+if grep -aq 'fzf is required' "$B/nofzf_int/tty" 2>/dev/null \
+   && [[ ! -f $B/nofzf_int/party_answers.json && ! -f $B/nofzf_int/questions.txt ]]; then
+  ok "nofzf: interactive requires fzf, fails before creating files"
+else
+  { cat "$B/nofzf_int/tty" 2>/dev/null; ls "$B/nofzf_int"; } | sed 's/^/    /'
+  bad "nofzf: interactive fzf requirement (tty + dir above)"
+fi
 
 # --- fzf question list cache (questions.txt) --------------------------------
 # the stub fzf captured the question list fed to it on the first search.

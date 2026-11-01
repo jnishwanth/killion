@@ -35,14 +35,13 @@ for a in "$@"; do
   case $a in -h|--help) usage; exit 0 ;; esac
 done
 
-for cmd in fzf jq; do
-  command -v "$cmd" >/dev/null || { echo "error: $cmd is required" >&2; exit 1; }
-done
+# jq + the data files are prerequisites of every mode below (watch runs jq
+# too — watch.mjs's lookups); fzf is checked in interactive() instead: it
+# is the only fzf consumer, and watch/one-shot/selftest must work without
+# it (audit M4)
+command -v jq >/dev/null || { echo "error: jq is required" >&2; exit 1; }
 [[ -f $DATA ]] || { echo "error: no $DATA — run: python3 download_full.py" >&2; exit 1; }
 [[ -f $TIERS ]] || { echo "error: no $TIERS" >&2; exit 1; }
-# create the party file only once the tool is known to be runnable — a
-# failed prerequisite must leave the repo untouched (same convention as help)
-[[ -f $PARTY ]] || echo '{}' > "$PARTY"
 
 # match a query and print the result in one pass: answer lines (text,
 # capped; full, uncapped), a compact JSON object (json), \x01-prefixed
@@ -51,6 +50,14 @@ done
 lookup() {
   jq -r -f "$HERE/render.jq" --arg q "$1" --arg m "$2" \
     --slurpfile p "$PARTY" --slurpfile T "$TIERS" "$DATA"
+}
+
+# party_answers.json is created by the modes that read it (one-shot,
+# interactive) — only once the tool is known to be runnable: a failed
+# prerequisite must leave the repo untouched (same convention as help).
+# watch.mjs creates it itself on its first flush
+ensure_party() {
+  [[ -f $PARTY ]] || echo '{}' > "$PARTY"
 }
 
 # all known questions, one per line (fzf search list). The dataset half is
@@ -112,6 +119,10 @@ answer_view() {
 }
 
 interactive() {
+  # fzf is an interactive-only prerequisite (audit M4): fail before any
+  # file this mode creates (party file, view epoch, question-list cache)
+  command -v fzf >/dev/null || { echo "error: fzf is required for interactive mode" >&2; exit 1; }
+  ensure_party
   local q rc last=""
   local list; list=$(qlist)
   # epoch marker for the render cache; the RETURN trap removes it on exit
@@ -132,6 +143,7 @@ interactive() {
 # one-shot: resolve the query (exact, else case-insensitive substring) and
 # print the result in one pass. $1 = text|full|json, rest = query words.
 one_shot() {
+  ensure_party
   local mode="$1"; shift
   local query="$*" out
   out=$(lookup "$query" "$mode")
