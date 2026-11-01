@@ -47,10 +47,11 @@ open to change.
   watch's view), `--all` lifts the caps, `--json` is always complete.
   `-h/--help` prints usage (works even without fzf or the dataset).
   `--selftest` validates the dataset against the official API.
-- `killion watch <CODE>` (node, stdlib): watches a lobby's live question and
-  shows the best verified answers, minus what players have already said this
-  round. It reads the room's live stream anonymously — the stream is not
-  gated on membership, so no join is needed and nothing is visible.
+- `killion watch <CODE>` (node ≥ 22, stdlib): watches a lobby's live
+  question and shows the best verified answers, minus what players have
+  already said this round. It reads the room's live stream anonymously —
+  the stream is not gated on membership, so no join is needed and nothing
+  is visible.
 - **Recording:** every accepted answer seen in a room arrives pre-scored by
   the server; watch records it into `party_answers.json`. The dataset grows
   with play, so party-only categories accumulate real answers over time.

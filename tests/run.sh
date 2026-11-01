@@ -144,6 +144,28 @@ else
   bad "watch: token-fetch failure path"
 fi
 
+# node without the global WebSocket (the node < 22 case, emulated with
+# --no-experimental-websocket, which removes it on this node — if a future
+# node drops the flag, drop this case; the runtime check stays): watch.mjs
+# must fail fast with a clean one-line error before any network (exit 1,
+# no stack trace). Zero stubs, zero network — the error reaching stderr at
+# all proves the check runs before the token fetch (offline, that fetch
+# would fail first and print its own message instead). Semantic assertions
+# only (like the netfail variant): no golden line.
+if node --no-experimental-websocket -e '' >/dev/null 2>&1; then
+  node --no-experimental-websocket "$H/watch.mjs" TEST > "$H/nodever.txt" 2>&1
+  if [[ $? -eq 1 ]] && grep -q 'no global WebSocket' "$H/nodever.txt" \
+     && [[ $(wc -l < "$H/nodever.txt") -eq 1 ]] \
+     && ! grep -q 'ReferenceError' "$H/nodever.txt"; then
+    ok "watch: no global WebSocket - clean one-line error before network (exit 1)"
+  else
+    sed 's/^/    /' "$H/nodever.txt"
+    bad "watch: no-WebSocket startup path (output above)"
+  fi
+else
+  ok "watch: no-WebSocket startup path (skipped: this node lacks --no-experimental-websocket)"
+fi
+
 # fatal-close variant (4404 room-gone; 4403 refused is the same code path):
 # the harness appends a pass event AFTER the last new-round boundary, then
 # fires the close — watch.mjs must flush the party file on the way out
