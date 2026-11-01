@@ -60,10 +60,11 @@ open to change.
 
 | file | job |
 |---|---|
-| `killion` | CLI entry: fzf interactive, one-shot lookup, `watch` dispatch, `--selftest` |
+| `killion` | CLI entry: fzf interactive, one-shot lookup, `watch` dispatch, `--selftest`, `--check-party` |
 | `watch.mjs` | live room watcher + recorder (answer lookup is the CLI's `render.jq` in exact mode) |
 | `render.jq` | query match (exact, else case-insensitive substring; exact-only for watch) + answer-list rendering — capped text for one-shot, full text for fzf/--all, JSON for --json/watch (single jq pass, shared by CLI and watcher) |
 | `selftest.jq` | dataset validation for `--selftest` (single jq pass) |
+| `check_party.jq` | party-dataset review list for `--check-party`: entries daily-verified for another question (single jq pass) |
 | `tiers.json` | shared tier table (order, names, icons, points, display caps) used by `render.jq`, `watch.mjs`, `download_full.py` |
 | `party_answers.json` | earned record of game-verified party answers (append-only by design) |
 | `full_dives.json` | daily-dive dataset: all dives since launch, every accepted answer + tier |

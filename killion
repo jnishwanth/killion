@@ -25,6 +25,8 @@ usage: killion [mode]
                           seat; verified answers minus what's already been said;
                           records every accepted answer into party_answers.json
   --selftest              validate the dataset against the latest official reveal
+  --check-party           review list: party answers daily-verified for a
+                          different question (exit 0; not a gate)
   -h, --help              print this help
 EOF
 }
@@ -190,6 +192,32 @@ selftest() {
   return $(( 1 - ok ))
 }
 
+# review list for party_answers.json: entries whose answer (case-folded) is
+# daily-verified for at least one question other than its own (strict
+# heuristic — answers never daily-verified are party-only, not flagged;
+# check_party.jq). A review list, not a gate: party-only questions
+# legitimately overlap daily answers, so a successful run always exits 0,
+# even with flags
+check_party() {
+  local out total=0 flagged=0
+  [[ -f $PARTY ]] || { echo "no party_answers.json to check" >&2; return 1; }
+  local kind f1 f2 f3 f4 f5 f6
+  out=$(jq -r -f "$HERE/check_party.jq" --slurpfile p "$PARTY" "$DATA") \
+    || { echo 'check-party: dataset or party file is malformed' >&2; return 1; }
+  [[ -n $out ]] || { echo 'check-party: dataset or party file is malformed' >&2; return 1; }
+  while IFS=$'\t' read -r kind f1 f2 f3 f4 f5 f6; do
+    if [[ $kind == S ]]; then
+      total=$f1; flagged=$f2
+    else
+      printf 'flag  "%s" under "%s"  (%s, first seen %s)\n' "$f3" "$f2" "$f4" "$f1"
+      printf '        daily-verified for %s other question(s): %s\n' "$f5" "$f6"
+    fi
+  done <<< "$out"
+  echo
+  echo "check-party: $flagged of $total entries flagged — review list, not a verdict"
+  return 0
+}
+
 main() {
   local -a rest=()
   local as_json=0 as_all=0
@@ -199,6 +227,7 @@ main() {
       --json) as_json=1 ;;
       --all) as_all=1 ;;
       --selftest) selftest; exit $? ;;
+      --check-party) check_party; exit $? ;;
       *) rest+=("$a") ;;
     esac
   done

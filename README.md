@@ -34,6 +34,8 @@ killion watch ROOMCODE       # watch a Puffer Party room live (invisible, takes
                              # no seat): verified answers minus what players have
                              # already said; records every accepted answer
 killion --selftest           # validate the dataset against the official reveal
+killion --check-party        # flag party answers daily-verified for another
+                             # question (review list, not a verdict; exit 0)
 ```
 
 - `party_answers.json` grows from `killion watch`'s recordings, so party-only

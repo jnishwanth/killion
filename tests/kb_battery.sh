@@ -99,6 +99,12 @@ run 18_h                 -h
 nofzf_run 28_nofzf_oneshot   "Name a strategy board game"
 nofzf_run 29_nofzf_selftest  --selftest
 nofzf_run 30_nofzf_watch     watch ABCD
+# check-party on the pristine synthetic party file: pins the 4 known
+# false-positive baseline (Sardine, P1, P2, U2 — daily-verified for other
+# questions) and, by byte-exact output, that the other 17 entries — incl.
+# Go/Rithmomachia under their own daily question — are NOT flagged; exit 0
+# even with flags (review list, not a gate)
+run 31_check_party --check-party
 run 19_json_ambiguous    "Name a" --json
 # all party entries dup daily answers: source must be "daily" (no extras exist),
 # pinning the extras-based source semantics
@@ -124,6 +130,14 @@ run 24_selftest_malformed --selftest
 # normalize it for a stable golden hash
 sed "s|$R|<repo>|g" "$OUT/24_selftest_malformed.err" > .err.tmp \
   && mv .err.tmp "$OUT/24_selftest_malformed.err"
+
+# check-party true-positive direction: an answer daily-verified for a
+# different question (Go — verified under 11 daily questions, none of them
+# this party-only one) must be flagged (case 31 pins the untouched file)
+jq '.["A party-only question nobody asked daily"] +=
+  [{"a":"Go","tier":"rare","seen":1,"firstSeen":"2026-10-29","lastSeen":"2026-10-29"}]' \
+  party_answers.json > .party.tmp && mv .party.tmp party_answers.json
+run 32_check_party_doctored --check-party
 
 # timing: min of 3 text lookups, seconds
 best=99
