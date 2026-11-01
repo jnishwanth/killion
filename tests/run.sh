@@ -320,10 +320,13 @@ else
   bad "parse: parse_cards vs archived page"
 fi
 
-# --- download_full.py main (offline: get + date.today stubbed) -------------
-# kd_main.py runs main() in a scratch dir against the same fixture: pins the
-# output files, the --csv opt-in (no CSV by default) and the official-API
-# validation section (official_latest.json + MISMATCH reporting)
+# --- download_full.py main (offline: get + date.today + df.HERE stubbed) --
+# kd_main.py runs main() from a scratch CWD with df.HERE pointed at a
+# separate scratch dir, against the same fixture: pins the output files
+# (next to the script, CWD untouched), the atomic-write convention (a
+# mid-dump crash leaves the old file intact), the --csv opt-in (no CSV by
+# default) and the official-API validation section (official_latest.json +
+# MISMATCH reporting)
 python3 "$HERE/kd_main.py" "$ROOT" > "$WORK/kdmain.txt" 2>&1
 if [[ $? -eq 0 ]]; then
   sed 's/^/ok   /' "$WORK/kdmain.txt"

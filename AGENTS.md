@@ -69,9 +69,9 @@ open to change.
 | `party_answers.json` | earned record of game-verified party answers (append-only by design) |
 | `full_dives.json` | daily-dive dataset: all dives since launch, every accepted answer + tier |
 | `questions.txt` | fzf question list cache (gitignored; killion regenerates it when missing or stale vs `full_dives.json`) |
-| `download_full.py` | refreshes `full_dives.json` from public data (the only Python; stdlib only; `--csv` opt-in also writes `full_answers.csv`) |
+| `download_full.py` | refreshes `full_dives.json` from public data (the only Python; stdlib only; writes land next to the script — CWD-independent, atomic tmp+rename; `--csv` opt-in also writes `full_answers.csv`) |
 | `official_latest.json` | latest official API reveal; target of `--selftest` |
-| `tests/` | offline test suite: `tests/run.sh` runs the CLI/render battery + a stubbed-WebSocket `watch.mjs` driver against `tests/golden.sha`, plus offline `download_full.py` parser (`tests/kd_parse.py`) and main (`tests/kd_main.py`, stubbed archive + `date.today`; also re-run under a POSIX/C locale to pin the explicit utf-8 writes) tests vs a real archived dive page in `tests/fixtures/` — no network, no live room |
+| `tests/` | offline test suite: `tests/run.sh` runs the CLI/render battery + a stubbed-WebSocket `watch.mjs` driver against `tests/golden.sha`, plus offline `download_full.py` parser (`tests/kd_parse.py`) and main (`tests/kd_main.py`, stubbed archive + `date.today` + `df.HERE`; pins CWD-independent atomic writes; also re-run under a POSIX/C locale to pin the explicit utf-8 writes) tests vs a real archived dive page in `tests/fixtures/` — no network, no live room |
 
 ## Protocol facts (as observed; re-verify if something breaks)
 

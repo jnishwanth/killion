@@ -9,12 +9,13 @@ Each /archive/YYYY-MM-DD/ page has 7 prompt cards (id="p1".."p7"):
     (<button class="chip" data-copy="..."> with optional <span class="quip">),
     grouped by tier-group data-tier.
 
-Outputs (in this directory):
+Outputs (next to this script, whatever the CWD is; atomic tmp+rename writes):
   full_dives.json  - one object per dive: {n, date, prompts: [{q, answers: [{a, tier, pts, quip}]}]}
   official_latest.json - raw latest official reveal (for validation)
 With --csv (opt-in; nothing in the repo consumes the CSV):
   full_answers.csv - one row per answer: dive, date, prompt, answer, tier, points
 """
+import contextlib
 import csv
 import html as htmlmod
 import json
@@ -36,6 +37,22 @@ with open(os.path.join(HERE, "tiers.json"), encoding="utf-8") as _f:
     TIER_PTS = {k: v["pts"] for k, v in json.load(_f)["tiers"].items()}
 
 CARD_RE = re.compile(r'id="p([1-7])"')
+
+
+@contextlib.contextmanager
+def atomic_write(name, **open_kw):
+    """Open <name> next to the script (CWD-independent) for atomic
+    writing: the bytes go to a .tmp sibling (gitignored) that is renamed
+    over the target on clean close — the party-file convention in
+    watch.mjs — so a crash or Ctrl-C mid-dump leaves either the old file
+    or the new one, never a truncated one (a stray .tmp is inert and the
+    next run overwrites it). encoding='utf-8' always: under a POSIX/C
+    locale the default is ASCII, and the dataset's non-ASCII answers
+    would crash the dump."""
+    path = os.path.join(HERE, name)
+    with open(path + ".tmp", "w", encoding="utf-8", **open_kw) as f:
+        yield f
+    os.replace(path + ".tmp", path)
 
 
 def get(url: str, retries: int = 3) -> bytes:
@@ -134,13 +151,10 @@ def main(with_csv: bool = False):
         print(f"  dive #{n} {day}: {len(prompts)} prompts, {total} answers")
         time.sleep(SLEEP)
 
-    # explicit utf-8 on every write: under a POSIX/C locale the default
-    # encoding is ASCII, and a crash mid-dump would leave the dataset
-    # half-written
-    with open("full_dives.json", "w", encoding="utf-8") as f:
+    with atomic_write("full_dives.json") as f:
         json.dump(dives, f, ensure_ascii=False)
     if with_csv:    # opt-in: 44 MB, and nothing in the repo consumes it
-        with open("full_answers.csv", "w", newline="", encoding="utf-8") as f:
+        with atomic_write("full_answers.csv", newline="") as f:
             w = csv.writer(f)
             w.writerow(["dive", "date", "prompt", "answer", "tier", "points"])
             for dv in dives:
@@ -154,7 +168,7 @@ def main(with_csv: bool = False):
             off = json.loads(get(f"https://krillion.io/api/reveal?date={dv['date']}"))
         except Exception:
             continue
-        with open("official_latest.json", "w", encoding="utf-8") as f:
+        with atomic_write("official_latest.json") as f:
             f.write(json.dumps(off, ensure_ascii=False))
         print(f"\nvalidation vs official API (dive #{dv['n']} {dv['date']}):")
         off_by_q = {p["text"]: len(p["answers"]) for p in off["prompts"]}
