@@ -14,7 +14,7 @@
 # watch.mjs harness (comparing its kw/harness golden line), skips the rest,
 # exits 0, and prints the remedy; --regen refuses without the dataset.
 #
-# The golden covers the CLI/render battery (27 cases: sha of stdout and
+# The golden covers the CLI/render battery (29 cases: sha of stdout and
 # stderr SEPARATELY + exit code), the interactive copy path (4 cases, real
 # killion on a pty with stubbed fzf/pbcopy) and the offline watch.mjs driver
 # (drawn stdout + harness stdout + exit). Hashing the streams separately
@@ -281,7 +281,7 @@ if [[ -n $missing ]]; then
   echo "remedy: python3 download_full.py   (then re-run tests/run.sh)"
   echo
   echo "skipped (all dataset-dependent): download_full.py parser + main tests"
-  echo "(incl. the POSIX/C-locale run), the 27-case CLI/render battery, the"
+  echo "(incl. the POSIX/C-locale run), the 29-case CLI/render battery, the"
   echo "interactive pty copy / question-list cache / answer-view cache checks,"
   echo "the one-shot timing guard, and the kb/* golden lines (the dataset-"
   echo "independent watch.mjs harness above still ran; the golden compare"
@@ -347,7 +347,8 @@ fi
 # --- CLI/render battery ----------------------------------------------------
 B="$WORK/battery"
 mkdir -p "$B"
-cp "$ROOT/killion" "$ROOT/render.jq" "$ROOT/selftest.jq" "$ROOT/tiers.json" \
+cp "$ROOT/killion" "$ROOT/render.jq" "$ROOT/selftest.jq" "$ROOT/check_party.jq" \
+   "$ROOT/tiers.json" \
    "$ROOT/full_dives.json" "$ROOT/official_latest.json" "$B/"
 bash "$HERE/kb_battery.sh" "$B" "$B/out" || bad "battery crashed"
 
@@ -386,7 +387,8 @@ KB_CASES="01_text_daily 02_text_daily_extras 03_json_daily 04_text_partial
 13_itrm_quip 14_itrm_seen 15_itrm_plain 16_itrm_header
 17_help 18_h 19_json_ambiguous 20_selftest_fail 21_json_dedup_all 22_all
 23_party_overcap 24_selftest_malformed
-28_nofzf_oneshot 29_nofzf_selftest 30_nofzf_watch"
+28_nofzf_oneshot 29_nofzf_selftest 30_nofzf_watch
+31_check_party 32_check_party_doctored"
 
 # --- interactive copy path (pty + stubbed fzf/pbcopy) ---------------------
 # the fzf-driven flow the one-shot battery can't reach: run the real killion
